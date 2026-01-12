@@ -1,0 +1,27 @@
+
+# --- ROS 2 Build Klasörleri ---
+build/
+install/
+log/
+COLCON_IGNORE
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+env/
+
+# --- JetBrains IDE (PyCharm, CLion, IntelliJ) ---
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+cmake-build-*/
+
+# --- VS Code ---
+.vscode/
+
+# --- Mac OS ---
+.DS_Store
