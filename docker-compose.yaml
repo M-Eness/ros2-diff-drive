@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  ros_dev:
+    image: ros2_ws
+    container_name: ros2_dev
+    platform: linux/arm64
+    # -it parametresinin karşılığı (konteyneri açık tutar)
+    stdin_open: true
+    tty: true
+    # Ağ ayarları (Foxglove için)
+    ports:
+      - "8765:8765"
+    # Klasör bağlama (Senin src -> Konteyner src)
+    volumes:
+      - ./src:/ros2_ws/src
+    # Ortam değişkenleri
+    environment:
+      - DISPLAY=host.docker.internal:0
