@@ -47,7 +47,7 @@ def generate_launch_description():
     # "empty.sdf" boş bir dünya açar.
     # ========================================================================
     gazebo = ExecuteProcess(
-        cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', 'empty.sdf'],
+        cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', 'shapes.sdf'],
         output='screen'
     )
 
@@ -78,10 +78,24 @@ def generate_launch_description():
         output='screen'
     )
 
+    # 6. TF DÜZELTİCİ (LIDAR FIX) - YENİ EKLENEN KISIM
+    # ========================================================================
+    # Gazebo'nun verdiği garip ismi (my_robot/base_link/lidar),
+    # bizim bildiğimiz "lidar_link" ile eşleştirir.
+    lidar_tf_fix = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='lidar_tf_fix',
+        # Argümanlar: x y z roll pitch yaw frame_id child_frame_id
+        arguments=['0', '0', '0', '0', '0', '0', 'lidar_link', 'my_robot/base_link/lidar'],
+        output='screen'
+    )
+
     return LaunchDescription([
         robot_state_publisher,
         joint_state_publisher,
         gazebo,
         spawn_entity,
-        ros_gz_bridge
+        ros_gz_bridge,
+        lidar_tf_fix
     ])
