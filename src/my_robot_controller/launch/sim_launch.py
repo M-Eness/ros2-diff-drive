@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler
+from launch.actions import IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler, SetEnvironmentVariable
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnProcessExit
 from launch_ros.actions import Node
@@ -46,8 +46,10 @@ def generate_launch_description():
     # Gazebo'yu başlatır. "-r" (run) simülasyonu başlatır.
     # "empty.sdf" boş bir dünya açar.
     # ========================================================================
+    world_file = os.path.join(pkg_share, 'worlds', 'track.sdf')
+
     gazebo = ExecuteProcess(
-        cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', 'shapes.sdf'],
+        cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', world_file],
         output='screen'
     )
 
@@ -91,11 +93,19 @@ def generate_launch_description():
         output='screen'
     )
 
+    tf_fix_bumper_bot = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['0', '0', '0', '0', '0', '0', 'laser_link', 'bumperbot/base_footprint/lidar'],
+        output='screen'
+    )
+
     return LaunchDescription([
         robot_state_publisher,
         joint_state_publisher,
         gazebo,
         spawn_entity,
         ros_gz_bridge,
-        lidar_tf_fix
+        lidar_tf_fix,
+        tf_fix_bumper_bot
     ])

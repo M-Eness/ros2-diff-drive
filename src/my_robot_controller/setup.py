@@ -22,6 +22,9 @@ setup(
         # Config (YAML) dosyalarını taşı
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
 
+        # "worlds klasöründeki her şeyi (.sdf), share/paket_ismi/worlds içine kopyala" der:
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
+
     ],
     install_requires=['setuptools'],
     zip_safe=True,

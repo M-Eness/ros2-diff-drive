@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="robotaxi_track">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Sun</uri>
+    </include>
+
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Ground Plane</uri>
+    </include>
+
+    <model name='wall_1'>
+      <static>true</static>
+      <pose>10 0 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>0.2 20 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.2 20 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='wall_2'>
+      <static>true</static>
+      <pose>-10 0 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>0.2 20 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.2 20 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='wall_3'>
+      <static>true</static>
+      <pose>0 10 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='wall_4'>
+      <static>true</static>
+      <pose>0 -10 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='obstacle_center'>
+      <static>true</static>
+      <pose>0 0 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>5 5 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>5 5 1</size></box></geometry><material><ambient>0.8 0.1 0.1 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='obstacle_corner'>
+      <static>true</static>
+      <pose>5 5 0.5 0 0 0.785</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>2 2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>2 2 1</size></box></geometry><material><ambient>0.1 0.1 0.8 1</ambient></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
