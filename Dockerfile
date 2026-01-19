@@ -16,6 +16,8 @@ RUN curl -sSL https://packages.osrfoundation.org/gazebo.gpg -o /usr/share/keyrin
 
 # 4. Paket Kurulumu (RViz YOK, X11 YOK, Foxglove VAR)
 RUN apt-get update && apt-get install -y \
+    ros-humble-turtlebot3-gazebo \
+    ros-humble-teleop-twist-keyboard \
     ros-humble-rmw-cyclonedds-cpp \
     ros-humble-joint-state-publisher \
     # Gazebo Sim + Bridge

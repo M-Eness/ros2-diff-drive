@@ -22,14 +22,9 @@ def generate_launch_description():
         executable='async_slam_toolbox_node',
         name='slam_toolbox',
         output='screen',
-        parameters=[{
-            'use_sim_time': True,          # Simülasyon zamanı (Kritik!)
-            'base_frame': 'base_link',     # Robot gövdesi
-            'odom_frame': 'odom',          # Odometri referansı
-            'map_frame': 'map',            # Harita referansı
-            'scan_topic': '/scan',         # Lidar verisi
-            'mode': 'mapping'              # Haritalama modu
-        }]
+        parameters=[
+            os.path.join(pkg_share, 'config', 'slam_params.yaml')
+        ]
     )
 
     return LaunchDescription([
