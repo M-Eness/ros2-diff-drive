@@ -48,7 +48,7 @@
   <link name="wheel_right_link">
     <inertial>
       <origin xyz="0 -0.014 0" rpy="0 0 0" />
-      <mass value="0.053" />
+      <mass value="0.2" />
       <inertia ixx="0.0000188" ixy="0" ixz="0"
                iyy="0.0000311" iyz="0"
                izz="0.0000188" />
@@ -77,7 +77,7 @@
   <link name="wheel_left_link">
     <inertial>
       <origin xyz="0 0.014 0" rpy="0 0 0" />
-      <mass value="0.053" />
+      <mass value="0.2" />
       <inertia ixx="0.0000188" ixy="0" ixz="0"
                iyy="0.0000311" iyz="0"
                izz="0.0000188" />
@@ -113,11 +113,11 @@
       <geometry><sphere radius="0.015"/></geometry>
     </collision>
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.05"/>
       <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
     </inertial>
   </link>
-  <joint name="caster_front_joint" type="fixed">
+  <joint name="caster_front_joint" type="continuous">
     <origin xyz="0.12 0 -0.018" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="caster_front_link" />
@@ -132,11 +132,11 @@
       <geometry><sphere radius="0.015"/></geometry>
     </collision>
     <inertial>
-      <mass value="0.001"/>
+      <mass value="0.05"/>
       <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
     </inertial>
   </link>
-  <joint name="caster_rear_joint" type="fixed">
+  <joint name="caster_rear_joint" type="continuous">
     <origin xyz="-0.12 0 -0.018" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="caster_rear_link" />
@@ -173,19 +173,18 @@
   </gazebo>
 
   <gazebo reference="caster_front_link">
-    <mu1>0.001</mu1> <mu2>0.001</mu2>
+    <mu1>0.0</mu1> <mu2>0.0</mu2>
     <material>Gazebo/Grey</material>
   </gazebo>
   <gazebo reference="caster_rear_link">
-    <mu1>0.001</mu1> <mu2>0.001</mu2>
+    <mu1>0.0</mu1> <mu2>0.0</mu2>
     <material>Gazebo/Grey</material>
   </gazebo>
 
-  <gazebo reference="laser_link">
+<gazebo reference="laser_link">
     <sensor name='lidar' type='gpu_lidar'>
-      <pose relative_to='laser_link'>0 0 0 0 0 0</pose>
-      <topic>/lidar/scan</topic>
-      <frame_id>laser_link</frame_id>
+      <pose>0 0 0 0 0 0</pose>
+      <topic>/scan</topic> <frame_id>laser_link</frame_id>
       <update_rate>10</update_rate>
       <ray>
         <scan>
@@ -195,13 +194,13 @@
           </horizontal>
         </scan>
         <range>
-          <min>0.15</min><max>20.0</max><resolution>0.01</resolution>
+          <min>0.15</min><max>12.0</max><resolution>0.01</resolution>
         </range>
       </ray>
       <always_on>1</always_on>
       <visualize>true</visualize>
     </sensor>
-  </gazebo>
+</gazebo>
 
   <gazebo>
     <plugin filename="libignition-gazebo-diff-drive-system.so" name="ignition::gazebo::systems::DiffDrive">
@@ -210,11 +209,13 @@
       <wheel_separation>0.24</wheel_separation>
       <wheel_radius>0.033</wheel_radius>
       <topic>/cmd_vel</topic>
-      <odom_publish_frequency>20</odom_publish_frequency>
+      <odom_publish_frequency>30</odom_publish_frequency>
       <frame_id>odom</frame_id>
       <child_frame_id>base_footprint</child_frame_id>
-      <odom_topic>/model/my_robot/odometry</odom_topic>
+      <!-- Ignition'da topic ismi model prefixi ile gelir -->
       <tf_topic>/model/my_robot/tf</tf_topic>
+      <odom_topic>/model/my_robot/odometry</odom_topic>
+      <publish_tf>true</publish_tf>
     </plugin>
     <plugin filename="libignition-gazebo-sensors-system.so" name="ignition::gazebo::systems::Sensors">
       <render_engine>ogre2</render_engine>

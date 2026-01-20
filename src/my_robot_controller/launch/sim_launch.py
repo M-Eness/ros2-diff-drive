@@ -62,7 +62,9 @@ def generate_launch_description():
         executable='create',
         arguments=['-topic', 'robot_description',  # URDF'i bu topic'ten okur
                    '-entity', 'my_robot',  # Robotun Gazebo'daki adı
-                   '-z', '0.5'],  # Yere gömülmesin diye 10cm yukarıda doğar
+                   '-z', '0.5',
+                   '-x', '2.0',
+                   '-y', '3.0'],  # Yere gömülmesin diye 10cm yukarıda doğar
         output='screen'
     )
 
@@ -80,24 +82,27 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 6. TF DÜZELTİCİ (LIDAR FIX) - YENİ EKLENEN KISIM
     # ========================================================================
-    # Gazebo'nun verdiği garip ismi (my_robot/base_link/lidar),
-    # bizim bildiğimiz "lidar_link" ile eşleştirir.
-    lidar_tf_fix = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='lidar_tf_fix',
-        # Argümanlar: x y z roll pitch yaw frame_id child_frame_id
-        arguments=['0', '0', '0', '0', '0', '0', 'lidar_link', 'my_robot/base_link/lidar'],
-        output='screen'
+    # NODE 5: EKF - Odometry'den odom->base_footprint TF'i üret
+    # ========================================================================
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[os.path.join(pkg_share, 'config', 'ekf.yaml')]
     )
 
-    tf_fix_bumper_bot = Node(
+    # ========================================================================
+    # NODE 6: LIDAR FRAME DÜZELTİCİ
+    # Gazebo'nun "bumperbot/base_footprint/lidar" frame'ini "laser_link"e bağla
+    # ========================================================================
+    lidar_frame_fix = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
+        name='lidar_frame_fix',
         arguments=['0', '0', '0', '0', '0', '0', 'laser_link', 'bumperbot/base_footprint/lidar'],
-        output='screen'
+        parameters=[{'use_sim_time': True}]
     )
 
     return LaunchDescription([
@@ -106,6 +111,6 @@ def generate_launch_description():
         gazebo,
         spawn_entity,
         ros_gz_bridge,
-        lidar_tf_fix,
-        tf_fix_bumper_bot
+        ekf_node,
+        lidar_frame_fix
     ])

@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.6">
-  <world name="robotaxi_track">
+  <world name="robotaxi_track_complex">
     <physics name="1ms" type="ignored">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
@@ -9,62 +9,95 @@
     <include>
       <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Sun</uri>
     </include>
-
     <include>
       <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Ground Plane</uri>
     </include>
 
-    <model name='wall_1'>
+    <model name='wall_north'>
+      <static>true</static>
+      <pose>0 7 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='wall_south'>
+      <static>true</static>
+      <pose>0 -7 0.5 0 0 0</pose>
+      <link name='link'>
+        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='wall_east'>
       <static>true</static>
       <pose>10 0 0.5 0 0 0</pose>
       <link name='link'>
-        <collision name='collision'><geometry><box><size>0.2 20 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>0.2 20 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <collision name='collision'><geometry><box><size>0.2 14.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.2 14.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
       </link>
     </model>
 
-    <model name='wall_2'>
+    <model name='wall_west'>
       <static>true</static>
       <pose>-10 0 0.5 0 0 0</pose>
       <link name='link'>
-        <collision name='collision'><geometry><box><size>0.2 20 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>0.2 20 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <collision name='collision'><geometry><box><size>0.2 14.2 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.2 14.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
       </link>
     </model>
 
-    <model name='wall_3'>
+    <model name='divider_wall'>
       <static>true</static>
-      <pose>0 10 0.5 0 0 0</pose>
+      <pose>-4 0 0.5 0 0 0</pose>
       <link name='link'>
-        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+        <collision name='collision'><geometry><box><size>0.2 8 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.2 8 1</size></box></geometry><material><ambient>0.6 0.4 0.2 1</ambient></material></visual>
       </link>
     </model>
 
-    <model name='wall_4'>
+    <model name='tilted_box'>
       <static>true</static>
-      <pose>0 -10 0.5 0 0 0</pose>
-      <link name='link'>
-        <collision name='collision'><geometry><box><size>20 0.2 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>20 0.2 1</size></box></geometry><material><ambient>0.3 0.3 0.3 1</ambient></material></visual>
+      <pose>5 4 0.5 0 0 0.52</pose> <link name='link'>
+        <collision name='collision'><geometry><box><size>2 4 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>2 4 1</size></box></geometry><material><ambient>0.1 0.5 0.8 1</ambient></material></visual>
       </link>
     </model>
 
-    <model name='obstacle_center'>
+    <model name='cylinder_obstacle'>
       <static>true</static>
-      <pose>0 0 0.5 0 0 0</pose>
+      <pose>6 -4 0.5 0 0 0</pose>
       <link name='link'>
-        <collision name='collision'><geometry><box><size>5 5 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>5 5 1</size></box></geometry><material><ambient>0.8 0.1 0.1 1</ambient></material></visual>
+        <collision name='collision'>
+          <geometry>
+            <cylinder><radius>1.0</radius><length>1.0</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <cylinder><radius>1.0</radius><length>1.0</length></cylinder>
+          </geometry>
+          <material><ambient>0.8 0.1 0.1 1</ambient></material>
+        </visual>
       </link>
     </model>
 
-    <model name='obstacle_corner'>
+    <model name='pillar_1'>
       <static>true</static>
-      <pose>5 5 0.5 0 0 0.785</pose>
+      <pose>-7 5 0.5 0 0 0</pose>
       <link name='link'>
-        <collision name='collision'><geometry><box><size>2 2 1</size></box></geometry></collision>
-        <visual name='visual'><geometry><box><size>2 2 1</size></box></geometry><material><ambient>0.1 0.1 0.8 1</ambient></material></visual>
+        <collision name='collision'><geometry><box><size>0.5 0.5 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.5 0.5 1</size></box></geometry><material><ambient>0.4 0.4 0.4 1</ambient></material></visual>
+      </link>
+    </model>
+
+    <model name='pillar_2'>
+      <static>true</static>
+      <pose>-8 3 0.5 0 0 0.785</pose> <link name='link'>
+        <collision name='collision'><geometry><box><size>0.5 0.5 1</size></box></geometry></collision>
+        <visual name='visual'><geometry><box><size>0.5 0.5 1</size></box></geometry><material><ambient>0.4 0.4 0.4 1</ambient></material></visual>
       </link>
     </model>
 
