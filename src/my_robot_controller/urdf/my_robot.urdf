@@ -16,23 +16,23 @@
 
   <link name="base_footprint"/>
 
-  <link name="base_link">
+<link name="base_link">
     <inertial>
-      <origin xyz="0 0 0.04" rpy="0.0 0.25 0.3" />
+      <origin xyz="0 0 0.08" rpy="0 0 0" />
       <mass value="0.8257"/>
       <inertia ixx="0.0221" ixy="-0.0001" ixz="0.0003"
                iyy="0.0211" iyz="-0.00005"
                izz="0.0200" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0.08" rpy="0 0 0" />
       <geometry>
         <box size="0.3 0.3 0.15"/>
       </geometry>
       <material name="black"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0 0.08" rpy="0 0 0" />
       <geometry>
         <box size="0.3 0.3 0.15"/>
       </geometry>
