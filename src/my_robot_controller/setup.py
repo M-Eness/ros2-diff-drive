@@ -25,6 +25,8 @@ setup(
         # "worlds klasöründeki her şeyi (.sdf), share/paket_ismi/worlds içine kopyala" der:
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
 
+        (os.path.join('share', package_name, 'maps'), glob('maps/*')),
+
     ],
     install_requires=['setuptools'],
     zip_safe=True,
