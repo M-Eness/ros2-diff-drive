@@ -16,18 +16,22 @@ RUN curl -sSL https://packages.osrfoundation.org/gazebo.gpg -o /usr/share/keyrin
 
 # 4. Paket Kurulumu (RViz YOK, X11 YOK, Foxglove VAR)
 RUN apt-get update && apt-get install -y \
-    ros-humble-turtlebot3-gazebo \
     ros-humble-teleop-twist-keyboard \
     ros-humble-rmw-cyclonedds-cpp \
+    # --- Robot Durum Paketleri ---
     ros-humble-joint-state-publisher \
-    # Gazebo Sim + Bridge
+    ros-humble-robot-state-publisher \
+    # --- Gazebo Sim + Bridge ---
     gz-fortress \
     ros-humble-ros-gz \
-    # Görselleştirme Köprüsü (Kritik Paket)
+    # --- Görselleştirme ---
     ros-humble-foxglove-bridge \
-    # Robot Kontrol & Navigasyon
+    # --- Navigasyon ve SLAM ---
     ros-humble-navigation2 \
     ros-humble-nav2-bringup \
+    ros-humble-slam-toolbox \
+    ros-humble-robot-localization \
+    # --- Kontrol ---
     ros-humble-xacro \
     ros-humble-ros2-control \
     ros-humble-ros2-controllers \
