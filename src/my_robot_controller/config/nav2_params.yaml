@@ -291,11 +291,12 @@ planner_server:
     GridBased:
       plugin: "nav2_smac_planner/SmacPlannerHybrid"
       downsample_costmap: false
-      allow_unknown: true
+      allow_unknown: false
       max_iterations: 1000000
       max_on_approach_iterations: 1000
       min_turning_radius: 0.5     # Controller'daki değerle AYNI olmalı
-      reverse_penalty: 2.0        # Geri gitmeyi ne kadar "sevmediği" (Çok yüksek yapma)
+      reverse_penalty: 5.0        # Geri gitmeyi ne kadar "sevmediği"
+      change_penalty: 150.0       # Yön değişikliğini ne kadar "sevmediği"
       cost_travel_multiplier: 2.0
       motion_model_for_search: "REEDS_SHEPP" # park için geri manevra
       angle_quantization_bins: 72

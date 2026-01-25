@@ -12,7 +12,7 @@
   direction: ROS_TO_GZ
 
 - ros_topic_name: "/joint_states"
-  gz_topic_name: "/world/robotaxi_track_complex/model/bumperbot/joint_state"
+  gz_topic_name: "/world/robotaxi_track_complex/model/my_robot/joint_state"
   ros_type_name: "sensor_msgs/msg/JointState"
   gz_type_name: "ignition.msgs.Model"
   direction: GZ_TO_ROS
@@ -24,12 +24,7 @@
   gz_type_name: "ignition.msgs.Odometry"
   direction: GZ_TO_ROS
 
-# TF - Gazebo'dan ROS'a transform
-- ros_topic_name: "/tf"
-  gz_topic_name: "/tf"
-  ros_type_name: "tf2_msgs/msg/TFMessage"
-  gz_type_name: "ignition.msgs.Pose_V"
-  direction: GZ_TO_ROS
+
 
 - ros_topic_name: "/scan"
   gz_topic_name: "/scan"
