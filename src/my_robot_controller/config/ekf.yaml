@@ -4,6 +4,26 @@ ekf_filter_node:
     frequency: 30.0
     sensor_timeout: 0.2
 
+    # --- IMU AYARLARI BAŞLANGICI ---
+    imu0: /imu/data
+
+    # IMU Konfigürasyonu: Hangi verileri kullanalım?
+    # [x, y, z, (pozisyon - IMU vermez, false)]
+    # [roll, pitch, yaw, (oryantasyon - Simülasyonda true yapılabilir)]
+    # [vx, vy, vz, (lineer hız - genelde false)]
+    # [vroll, vpitch, vyaw, (açısal hız - SIDESLIP İÇİN KRİTİK OLAN BU)]
+    # [ax, ay, az (lineer ivme - true olabilir)]
+    imu0_config: [ false, false, false,
+                   false,  false,  true,
+                   false, false, false,
+                   true,  true,  true,
+                   false,  false,  false ]
+
+    imu0_differential: false
+    imu0_relative: true
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true
+
     # Frame isimleri
     odom_frame: odom
     base_link_frame: base_footprint
@@ -19,10 +39,10 @@ ekf_filter_node:
     # Odometry kaynağı
     odom0: /odom
     odom0_config: [
-      true,  true,  false,   # x, y, z (pozisyon)
-      false, false, true,    # roll, pitch, yaw (oryantasyon)
-      true,  true,  false,   # vx, vy, vz (lineer hız)
-      false, false, true,    # vroll, vpitch, vyaw (açısal hız)
+      false,  false,  false,   # x, y, z (pozisyon)
+      false, false, false,    # roll, pitch, yaw (oryantasyon)
+      true,  false,  false,   # vx, vy, vz (lineer hız)
+      false, false, false,    # vroll, vpitch, vyaw (açısal hız)
       false, false, false    # ax, ay, az (ivme)
     ]
     odom0_queue_size: 10
