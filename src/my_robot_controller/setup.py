@@ -19,15 +19,15 @@ setup(
         # urdf klasöründeki tüm .urdf dosyalarını share/paket_adi/urdf içine at
         (os.path.join('share', package_name, 'urdf'), glob('urdf/*.urdf')),
 
-        # Config (YAML) dosyalarını taşı
-        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        # config klasöründeki her şeyi (.yaml, .json), share/paket_ismi/config içine kopyala:
+        (os.path.join('share', package_name, 'config'), glob('config/*')),
+        # ===============================
 
         # "worlds klasöründeki her şeyi (.sdf), share/paket_ismi/worlds içine kopyala" der:
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
 
         (os.path.join('share', package_name, 'maps'), glob('maps/*')),
-
-        (os.path.join('share', package_name, 'models'), glob('models/*')),
+        
 
     ],
     install_requires=['setuptools'],
@@ -45,7 +45,8 @@ setup(
         'console_scripts': [
             "test_node = my_robot_controller.test_node:main",
             "simple_subscriber = my_robot_controller.simple_subscriber:main",
-            "robot_driver = my_robot_controller.robot_driver:main"
+            "robot_driver = my_robot_controller.robot_driver:main",
+            'mission_manager = my_robot_controller.mission_manager:main'
         ],
     },
 )

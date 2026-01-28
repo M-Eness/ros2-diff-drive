@@ -1,0 +1,42 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "gorev_1",
+        "description": "1. Yolcu Alma Noktası",
+        "gorev_tipi": "DURAK",
+        "bekleme_suresi": 5
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [2.5, 1.0, 0.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "trafik_isigi_1",
+        "description": "Kavşak Işığı",
+        "gorev_tipi": "ISIK"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [4.0, 3.5, 0.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "park_hazirlik",
+        "description": "Park Alani Girisi",
+        "gorev_tipi": "PARK_GIRIS"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [6.5, -2.0, 0.0]
+      }
+    }
+  ]
+}

@@ -25,7 +25,7 @@ def generate_launch_description():
         )
     )
 
-    # 3. NAV2 BAŞLATMA (BRINGUP)
+    # 3. NAV2 BAŞLATMA (BRINGUP)l
     # Nav2'nin kendi launch dosyası
     # Bu dosya; AMCL, Map Server, Controller, Planner hepsini açar.
     nav2_launch = IncludeLaunchDescription(
