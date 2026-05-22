@@ -106,6 +106,10 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        SetEnvironmentVariable(
+            name='IGN_GAZEBO_RESOURCE_PATH',
+            value='/ros2_ws/src/my_robot_controller/models'
+        ),
         robot_state_publisher,
         joint_state_publisher,
         gazebo,
