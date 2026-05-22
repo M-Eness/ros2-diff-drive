@@ -46,7 +46,9 @@ setup(
             "test_node = my_robot_controller.test_node:main",
             "simple_subscriber = my_robot_controller.simple_subscriber:main",
             "robot_driver = my_robot_controller.robot_driver:main",
-            'mission_manager = my_robot_controller.mission_manager:main'
+            "mission_manager = my_robot_controller.mission_manager:main",
+            'ackermann_bridge = my_robot_controller.ackermann_bridge:main',
+            'vehicle_emulator = my_robot_controller.vehicle_emulator:main',
         ],
     },
 )
