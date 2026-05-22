@@ -259,6 +259,41 @@
     </sensor>
   </gazebo>
 
+  <link name="camera_gta_link">
+    <visual>
+      <geometry><box size="0.01 0.01 0.01"/></geometry>
+      <material name="black"/>
+    </visual>
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_gta_joint" type="fixed">
+    <origin xyz="-0.8 0 0.8" rpy="0 0.5 0"/>
+    <parent link="base_link"/>
+    <child link="camera_gta_link"/>
+  </joint>
+
+  <gazebo reference="camera_gta_link">
+    <sensor name="gta_camera" type="camera">
+      <pose>0 0 0 0 0 0</pose>
+      <update_rate>30</update_rate>
+      <camera>
+        <horizontal_fov>1.2</horizontal_fov> <image>
+          <width>800</width>
+          <height>600</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip><near>0.1</near><far>100.0</far></clip>
+      </camera>
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <topic>/camera/gta_view</topic> <frame_id>camera_gta_link</frame_id>
+    </sensor>
+  </gazebo>
+
 
   <gazebo reference="laser_link">
     <sensor name='lidar' type='gpu_lidar'>

@@ -46,7 +46,7 @@ def generate_launch_description():
     # Gazebo'yu başlatır. "-r" (run) simülasyonu başlatır.
     # "empty.sdf" boş bir dünya açar.
     # ========================================================================
-    world_file = os.path.join(pkg_share, 'worlds', 'track.sdf')
+    world_file = os.path.join(pkg_share, 'worlds', 'robotaksi.world')
 
     gazebo = ExecuteProcess(
         cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', world_file],
@@ -62,7 +62,7 @@ def generate_launch_description():
         executable='create',
         arguments=['-topic', 'robot_description',  # URDF'i bu topic'ten okur
                    '-entity', 'my_robot',  # Robotun Gazebo'daki adı
-                   '-z', '0.5',
+                   '-z', '2.0',
                    '-x', '2.0',
                    '-y', '3.0'],  # Yere gömülmesin diye 10cm yukarıda doğar
         output='screen'
