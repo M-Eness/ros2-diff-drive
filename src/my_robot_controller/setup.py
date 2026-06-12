@@ -49,6 +49,7 @@ setup(
             "mission_manager = my_robot_controller.mission_manager:main",
             'ackermann_bridge = my_robot_controller.ackermann_bridge:main',
             'vehicle_emulator = my_robot_controller.vehicle_emulator:main',
+            'traffic_sign_detector = my_robot_controller.traffic_sign_detector:main',
         ],
     },
 )
