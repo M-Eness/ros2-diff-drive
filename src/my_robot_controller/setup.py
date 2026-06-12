@@ -12,23 +12,11 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-
-        # launch klasöründeki tüm .py dosyalarını share/paket_adi/launch içine at
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
-
-        # urdf klasöründeki tüm .urdf dosyalarını share/paket_adi/urdf içine at
         (os.path.join('share', package_name, 'urdf'), glob('urdf/*.urdf')),
-
-        # config klasöründeki her şeyi (.yaml, .json), share/paket_ismi/config içine kopyala:
         (os.path.join('share', package_name, 'config'), glob('config/*')),
-        # ===============================
-
-        # "worlds klasöründeki her şeyi (.sdf), share/paket_ismi/worlds içine kopyala" der:
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
-
         (os.path.join('share', package_name, 'maps'), glob('maps/*')),
-        
-
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -37,9 +25,7 @@ setup(
     description='TODO: Package description',
     license='TODO: License declaration',
     extras_require={
-        'test': [
-            'pytest',
-        ],
+        'test': ['pytest'],
     },
     entry_points={
         'console_scripts': [
@@ -49,11 +35,9 @@ setup(
             "mission_manager = my_robot_controller.mission_manager:main",
             'ackermann_bridge = my_robot_controller.ackermann_bridge:main',
             'vehicle_emulator = my_robot_controller.vehicle_emulator:main',
-<<<<<<< Updated upstream
             'traffic_sign_detector = my_robot_controller.traffic_sign_detector:main',
-=======
             'static_obstacle_node = my_robot_controller.static_obstacle_node:main',
->>>>>>> Stashed changes
+            'lane_detection_node = my_robot_controller.lane_detection_node:main',
         ],
     },
 )
