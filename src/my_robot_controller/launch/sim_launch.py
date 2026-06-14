@@ -62,7 +62,7 @@ def generate_launch_description():
         executable='create',
         arguments=['-topic', 'robot_description',  # URDF'i bu topic'ten okur
                    '-entity', 'my_robot',  # Robotun Gazebo'daki adı
-                   '-z', '2.0',
+                   '-z', '0.5',
                    '-x', '2.0',
                    '-y', '3.0'],  # Yere gömülmesin diye 10cm yukarıda doğar
         output='screen'
@@ -101,7 +101,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='lidar_frame_fix',
-        arguments=['0', '0', '0', '0', '0', '0', 'laser_link', 'bumperbot/base_footprint/lidar'],
+        arguments=['0', '0', '0', '0', '0', '0', 'base_footprint', 'bumperbot/base_footprint/lidar'],
         parameters=[{'use_sim_time': True}]
     )
 

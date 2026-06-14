@@ -36,6 +36,7 @@ setup(
             'ackermann_bridge = my_robot_controller.ackermann_bridge:main',
             'vehicle_emulator = my_robot_controller.vehicle_emulator:main',
             'traffic_sign_detector = my_robot_controller.traffic_sign_detector:main',
+            'traffic_light_detector = my_robot_controller.traffic_light_detector:main',
             'static_obstacle_node = my_robot_controller.static_obstacle_node:main',
             'lane_detection_node = my_robot_controller.lane_detection_node:main',
         ],

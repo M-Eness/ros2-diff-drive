@@ -19,7 +19,7 @@ CLASS_NAMES = [
     "park_etmek_yasaktir", "park_yeri", "tunel", "durak", "dur"
 ]
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "weights", "best.pt")
+MODEL_PATH = "/home/rana/runs/detect/train/weights/best.pt"
 CONF_THRESHOLD = 0.5
 
 class TrafficSignDetector(Node):
