@@ -38,6 +38,7 @@ setup(
             'traffic_sign_detector = my_robot_controller.traffic_sign_detector:main',
             'traffic_light_detector = my_robot_controller.traffic_light_detector:main',
             'lane_detector_cv = my_robot_controller.lane_detector_cv:main',
+            'bt_decision_node = my_robot_controller.bt_decision_node:main',
             'static_obstacle_node = my_robot_controller.static_obstacle_node:main',
             'lane_detection_node = my_robot_controller.lane_detection_node:main',
         ],

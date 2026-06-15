@@ -1,11 +1,9 @@
 <?xml version="1.0" ?>
 <sdf version="1.6">
   <world name="robotaksi_world">
-
     <plugin filename="libignition-gazebo-physics-system.so" name="ignition::gazebo::systems::Physics"/>
     <plugin filename="libignition-gazebo-user-commands-system.so" name="ignition::gazebo::systems::UserCommands"/>
     <plugin filename="libignition-gazebo-scene-broadcaster-system.so" name="ignition::gazebo::systems::SceneBroadcaster"/>
-
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
@@ -13,7 +11,6 @@
       <specular>0.2 0.2 0.2 1</specular>
       <direction>-0.5 0.1 -0.9</direction>
     </light>
-
     <model name="invisible_ground">
       <static>true</static>
       <pose>0 0 -0.01 0 0 0</pose>
@@ -26,16 +23,15 @@
             </plane>
           </geometry>
         </collision>
-        </link>
+      </link>
     </model>
-
     <include>
       <uri>model://robotaksi_map</uri>
       <pose>0 0 0 0 0 0</pose>
     </include>
-
-      <include>
+    <include>
       <uri>model://traffic_light</uri>
+      <name>traffic_light_1</name>
       <pose>5 0 0 0 0 0</pose>
     </include>
     <include>
@@ -43,16 +39,10 @@
       <name>traffic_light_2</name>
       <pose>-5 3 0 0 0 0</pose>
     </include>
-  
-    <include>
-      <uri>model://traffic_light</uri>
-      <name>traffic_light_2</name>
-      <pose>-3 5 0 0 0 0</pose>
-    </include>
     <include>
       <uri>model://traffic_light</uri>
       <name>traffic_light_3</name>
       <pose>8 -4 0 0 0 0</pose>
     </include>
-</world>
+  </world>
 </sdf>
