@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoboTaksi Dashboard</title>
+<style>
+/* ─── RESET & BASE ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0d1117;
+  --surf:    #161b22;
+  --surf2:   #21262d;
+  --border:  #30363d;
+  --green:   #3fb950;
+  --blue:    #58a6ff;
+  --red:     #f85149;
+  --yellow:  #d29922;
+  --orange:  #db6d28;
+  --purple:  #bc8cff;
+  --gray:    #8b949e;
+  --text:    #e6edf3;
+  --dim:     #6e7681;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  --font-ui:   -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 13px; overflow: hidden; }
+
+/* ─── LAYOUT ─────────────────────────────────────────────────── */
+#app { display: grid; height: 100vh;
+  grid-template-rows: 52px 1fr;
+  grid-template-columns: 256px 1fr 300px;
+  grid-template-areas:
+    "hdr hdr hdr"
+    "side main perc";
+}
+header      { grid-area: hdr; }
+#sidebar    { grid-area: side; }
+#main       { grid-area: main; }
+#perception { grid-area: perc; }
+
+/* ─── HEADER ─────────────────────────────────────────────────── */
+header {
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  background: var(--surf); border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+.logo { font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--text); white-space: nowrap; }
+.logo span { color: var(--blue); }
+#ros-badge {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border-radius: 20px; background: var(--surf2); border: 1px solid var(--border);
+  font-size: 12px; font-family: var(--font-mono);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); transition: background .3s; }
+.dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+#node-count { font-size: 12px; color: var(--gray); font-family: var(--font-mono); }
+.spacer { flex: 1; }
+#clock { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+#btn-estop {
+  padding: 8px 18px; border-radius: 6px; border: 1.5px solid var(--red);
+  background: transparent; color: var(--red); font-weight: 700; font-size: 13px;
+  cursor: pointer; letter-spacing: .5px; transition: all .15s;
+}
+#btn-estop:hover { background: var(--red); color: #fff; }
+
+/* ─── SIDEBAR ─────────────────────────────────────────────────── */
+#sidebar {
+  overflow-y: auto; background: var(--surf); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.sb-section { padding: 10px 10px 4px; }
+.sb-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; padding: 0 4px 6px; }
+.proc-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 8px; border-radius: 6px; border: 1px solid transparent;
+  background: transparent; cursor: pointer; color: var(--text);
+  font-size: 12px; transition: background .1s, border-color .1s; margin-bottom: 2px;
+}
+.proc-btn:hover { background: var(--surf2); border-color: var(--border); }
+.proc-btn .dot-sm { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.proc-btn.running .dot-sm { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.proc-btn .btn-name { flex: 1; text-align: left; }
+.proc-btn .toggle { font-size: 11px; padding: 2px 7px; border-radius: 4px;
+  border: 1px solid var(--border); background: transparent; color: var(--gray);
+  cursor: pointer; white-space: nowrap; }
+.proc-btn.running .toggle { color: var(--red); border-color: var(--red); }
+.proc-btn .toggle:hover { opacity: .8; }
+
+/* ─── MAIN PANEL ───────────────────────────────────────────────── */
+#main { display: flex; flex-direction: column; overflow: hidden; }
+
+/* Vehicle stats */
+#vehicle-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border); border-bottom: 1px solid var(--border);
+}
+.stat-card {
+  background: var(--surf); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.stat-label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .8px; }
+.stat-value { font-family: var(--font-mono); font-size: 22px; font-weight: 600; line-height: 1; color: var(--text); }
+.stat-unit  { font-size: 10px; color: var(--gray); }
+.stat-bar   { height: 3px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+.stat-bar-fill { height: 100%; border-radius: 2px; transition: width .3s ease; }
+
+/* BT State */
+#bt-section {
+  padding: 10px 14px; background: var(--surf); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.bt-label  { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .8px; }
+#bt-state  { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+#pid-info  { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--gray); }
+
+/* Lane offset bar */
+#lane-section {
+  padding: 8px 14px; background: var(--surf2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.lane-label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .8px; white-space: nowrap; }
+#lane-track {
+  flex: 1; height: 8px; background: var(--border); border-radius: 4px; position: relative; overflow: visible;
+}
+#lane-marker {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%; background: var(--blue);
+  border: 2px solid var(--surf2); transition: left .2s ease;
+  box-shadow: 0 0 6px var(--blue);
+}
+#lane-val { font-family: var(--font-mono); font-size: 11px; color: var(--blue); width: 50px; text-align: right; }
+
+/* Terminal */
+#terminal-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.term-tabs { display: flex; background: var(--surf); border-bottom: 1px solid var(--border); padding: 0 10px; gap: 2px; align-items: flex-end; }
+.tab {
+  padding: 7px 14px; cursor: pointer; font-size: 11px; color: var(--gray);
+  border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; transition: all .15s;
+}
+.tab:hover { color: var(--text); background: var(--surf2); }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.term-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.term-btn { font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); background: transparent;
+  color: var(--gray); border-radius: 4px; cursor: pointer; }
+.term-btn:hover { color: var(--text); border-color: var(--gray); }
+#terminal {
+  flex: 1; padding: 10px 12px; overflow-y: auto; font-family: var(--font-mono); font-size: 11.5px;
+  line-height: 1.6; background: var(--bg);
+}
+.log-line { display: flex; gap: 8px; }
+.log-ts    { color: var(--dim); flex-shrink: 0; }
+.log-src   { flex-shrink: 0; font-weight: 600; min-width: 120px; }
+.log-msg   { color: var(--text); word-break: break-word; }
+.log-line.INFO  .log-src { color: var(--blue);   }
+.log-line.WARN  .log-src { color: var(--yellow);  }
+.log-line.ERROR .log-src { color: var(--red);     }
+.log-line.WARN  .log-msg { color: var(--yellow);  }
+.log-line.ERROR .log-msg { color: var(--red);     }
+
+/* ─── PERCEPTION PANEL ─────────────────────────────────────────── */
+#perception {
+  overflow-y: auto; background: var(--surf); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.perc-card { background: var(--surf2); margin: 8px 10px 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+.perc-card:last-child { margin-bottom: 8px; }
+.perc-hdr { padding: 8px 12px; font-size: 10px; font-weight: 600; letter-spacing: .8px; color: var(--dim); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+
+/* Traffic Light */
+#tl-display { display: flex; align-items: center; gap: 16px; padding: 14px 16px; }
+.tl-bulb { width: 42px; height: 42px; border-radius: 50%; border: 3px solid var(--border); transition: all .3s; }
+.tl-bulb.red-off    { background: #3a1a1a; }
+.tl-bulb.red-on     { background: var(--red);    border-color: var(--red);    box-shadow: 0 0 20px var(--red); }
+.tl-bulb.yellow-off { background: #3a2e1a; }
+.tl-bulb.yellow-on  { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 20px var(--yellow); }
+.tl-bulb.green-off  { background: #1a2e1a; }
+.tl-bulb.green-on   { background: var(--green);  border-color: var(--green);  box-shadow: 0 0 20px var(--green); }
+#tl-text { font-size: 14px; font-weight: 700; font-family: var(--font-mono); }
+
+/* Traffic Signs */
+#signs-list { padding: 10px 12px; min-height: 50px; }
+.sign-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px; margin: 3px;
+  background: var(--surf); border: 1px solid var(--border);
+  font-size: 11px; font-family: var(--font-mono);
+}
+.sign-chip .conf { color: var(--dim); font-size: 10px; }
+.no-detect { color: var(--dim); font-size: 11px; font-style: italic; }
+
+/* Lane Vis */
+#lane-vis-wrap { padding: 10px 12px; }
+#lane-canvas { width: 100%; height: 90px; border-radius: 6px; background: #1a1a2e; display: block; }
+
+/* Topic monitor */
+#topic-list { padding: 10px 12px; }
+.topic-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.topic-row:last-child { border: none; }
+.topic-name { font-family: var(--font-mono); font-size: 10px; color: var(--gray); }
+.topic-val  { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+
+/* ─── SCROLLBAR ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+/* ─── RESPONSIVE MISC ─────────────────────────────────────────── */
+.blink { animation: blink 1s step-start infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ═══════════════════════════════ HEADER ════════════════════════════════ -->
+<header>
+  <div class="logo">Robo<span>Taksi</span> Dashboard</div>
+
+  <div id="ros-badge">
+    <div class="dot" id="ros-dot"></div>
+    <span id="ros-label">ROS2 Bağlanıyor…</span>
+  </div>
+
+  <span id="node-count">0 aktif düğüm</span>
+
+  <div class="spacer"></div>
+
+  <span id="clock"></span>
+
+  <button id="btn-estop" onclick="sendCmd({action:'estop'})">⚡ ACİL DURDUR</button>
+</header>
+
+<!-- ═══════════════════════════════ SIDEBAR ══════════════════════════════ -->
+<div id="sidebar">
+
+  <div class="sb-section">
+    <div class="sb-label">Launch Dosyaları</div>
+    <div id="launch-list"></div>
+  </div>
+
+  <div class="sb-section" style="flex:1">
+    <div class="sb-label">ROS2 Düğümleri</div>
+    <div id="node-list"></div>
+  </div>
+
+  <!-- Quick publish controls -->
+  <div class="sb-section" style="border-top:1px solid var(--border); padding-top:10px;">
+    <div class="sb-label">Hız Komutu Gönder</div>
+    <div style="padding:6px 4px; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:var(--gray); width:50px;">İleri (m/s)</span>
+        <input id="inp-linear" type="number" value="0.3" step="0.05" min="-1" max="2"
+          style="flex:1; background:var(--surf2); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:12px;">
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:var(--gray); width:50px;">Dönüş (r/s)</span>
+        <input id="inp-angular" type="number" value="0.0" step="0.1" min="-2" max="2"
+          style="flex:1; background:var(--surf2); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:4px; font-size:12px;">
+      </div>
+      <div style="display:flex; gap:4px;">
+        <button class="term-btn" style="flex:1;" onclick="pubCmdVel()">▶ Gönder</button>
+        <button class="term-btn" onclick="stopRobot()">■ Durdur</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ MAIN ═══════════════════════════════════ -->
+<div id="main">
+
+  <!-- Vehicle Stats -->
+  <div id="vehicle-stats">
+    <div class="stat-card">
+      <div class="stat-label">Araç Hızı</div>
+      <div><span class="stat-value" id="s-speed">0.00</span> <span class="stat-unit">m/s</span></div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="bar-speed" style="width:0%;background:var(--green)"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Direksiyon</div>
+      <div><span class="stat-value" id="s-steer">0.000</span> <span class="stat-unit">rad</span></div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="bar-steer" style="width:50%;background:var(--blue)"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Gaz Pedalı</div>
+      <div><span class="stat-value" id="s-throttle">50</span> <span class="stat-unit">/ 120</span></div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="bar-throttle" style="width:0%;background:var(--orange)"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Fren Pedalı</div>
+      <div><span class="stat-value" id="s-brake">0</span> <span class="stat-unit">/ 50</span></div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="bar-brake" style="width:0%;background:var(--red)"></div></div>
+    </div>
+  </div>
+
+  <!-- BT Status -->
+  <div id="bt-section">
+    <span class="bt-label">BT Durumu</span>
+    <span id="bt-state" style="color:var(--green)">—</span>
+    <div style="flex:1; height:4px; background:var(--border); border-radius:2px; margin:0 16px; overflow:hidden;">
+      <div id="bt-prog" style="height:100%;background:var(--green);border-radius:2px;width:0%;transition:width .3s"></div>
+    </div>
+    <span id="pid-info">cmd_vel: lin=— ang=—</span>
+  </div>
+
+  <!-- Lane Offset Indicator -->
+  <div id="lane-section">
+    <span class="lane-label">Şerit Ofseti</span>
+    <div id="lane-track">
+      <div id="lane-marker"></div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:14px;background:var(--dim);border-radius:1px;"></div>
+    </div>
+    <span id="lane-val">+0.000</span>
+  </div>
+
+  <!-- Terminal -->
+  <div id="terminal-wrap">
+    <div class="term-tabs">
+      <div class="tab active" data-filter="">Tümü</div>
+      <div class="tab" data-filter="BT Karar">BT</div>
+      <div class="tab" data-filter="Ackermann Köprüsü">Ackermann</div>
+      <div class="tab" data-filter="Trafik Işığı">Işık</div>
+      <div class="tab" data-filter="Trafik İşareti">İşaret</div>
+      <div class="tab" data-filter="Şerit">Şerit</div>
+      <div class="tab" data-filter="PANEL">Panel</div>
+      <div class="term-actions">
+        <button class="term-btn" id="btn-pause" onclick="togglePause()">⏸ Duraklat</button>
+        <button class="term-btn" onclick="clearTerminal()">✕ Temizle</button>
+      </div>
+    </div>
+    <div id="terminal"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ PERCEPTION ═══════════════════════════ -->
+<div id="perception">
+
+  <!-- Traffic Light -->
+  <div class="perc-card">
+    <div class="perc-hdr">Trafik Işığı</div>
+    <div id="tl-display">
+      <div class="tl-bulb red-off"    id="tl-red"></div>
+      <div class="tl-bulb yellow-off" id="tl-yellow"></div>
+      <div class="tl-bulb green-off"  id="tl-green"></div>
+      <div>
+        <div id="tl-text" style="color:var(--dim)">YOK</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:2px;">/perception/flags</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Traffic Signs -->
+  <div class="perc-card">
+    <div class="perc-hdr">Trafik İşaretleri</div>
+    <div id="signs-list"><span class="no-detect">Tespit yok</span></div>
+  </div>
+
+  <!-- Lane visualization -->
+  <div class="perc-card">
+    <div class="perc-hdr">Şerit Görselleştirme</div>
+    <div id="lane-vis-wrap">
+      <canvas id="lane-canvas" width="280" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- Topic values -->
+  <div class="perc-card">
+    <div class="perc-hdr">Topic Değerleri</div>
+    <div id="topic-list">
+      <div class="topic-row"><span class="topic-name">/cmd_vel lin</span><span class="topic-val" id="tv-cmdlin">—</span></div>
+      <div class="topic-row"><span class="topic-name">/cmd_vel ang</span><span class="topic-val" id="tv-cmdang">—</span></div>
+      <div class="topic-row"><span class="topic-name">/FB_VehicleSpeed</span><span class="topic-val" id="tv-spd">—</span></div>
+      <div class="topic-row"><span class="topic-name">/RC_THRT_DATA</span><span class="topic-val" id="tv-thrt">—</span></div>
+      <div class="topic-row"><span class="topic-name">/BrakePedalControl</span><span class="topic-val" id="tv-brk">—</span></div>
+      <div class="topic-row"><span class="topic-name">/steering_target</span><span class="topic-val" id="tv-str">—</span></div>
+      <div class="topic-row"><span class="topic-name">/lane_offset</span><span class="topic-val" id="tv-lane">—</span></div>
+    </div>
+  </div>
+
+  <!-- Active ROS2 Nodes -->
+  <div class="perc-card" style="margin-bottom:10px;">
+    <div class="perc-hdr">Aktif ROS2 Düğümleri</div>
+    <div id="active-nodes-list" style="padding:10px 12px; font-family:var(--font-mono); font-size:10px; color:var(--gray); line-height:1.8;">
+      Bekleniyor…
+    </div>
+  </div>
+
+</div>
+</div><!-- #app -->
+
+<script>
+// ─── WebSocket ────────────────────────────────────────────────────────────
+let ws, paused = false, activeFilter = "", allLogs = [];
+const MAX_LOG_DOM = 300;
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen    = () => console.log("WS connected");
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onclose   = () => setTimeout(connect, 2000);
+  ws.onerror   = () => ws.close();
+}
+
+function sendCmd(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify(obj));
+}
+
+// ─── State Handling ───────────────────────────────────────────────────────
+function handleMsg(msg) {
+  if (msg.type === "snapshot" || msg.type === "state_update") {
+    applyState(msg);
+  } else if (msg.type === "log") {
+    pushLog(msg.entry);
+  } else if (msg.type === "proc_update") {
+    updateProcBtn(msg.key, msg.running, msg.label);
+  }
+}
+
+function applyState(s) {
+  // ROS connection
+  const dot = document.getElementById("ros-dot");
+  const lbl = document.getElementById("ros-label");
+  if (s.ros_connected) { dot.classList.add("on"); lbl.textContent = "ROS2 Bağlı"; }
+  else                  { dot.classList.remove("on"); lbl.textContent = "ROS2 Bekleniyor…"; }
+
+  // Node count
+  const cnt = (s.active_nodes || []).length;
+  document.getElementById("node-count").textContent = `${cnt} aktif düğüm`;
+
+  // Active nodes list
+  const anl = document.getElementById("active-nodes-list");
+  if (cnt > 0) anl.innerHTML = (s.active_nodes || []).map(n => `<div>● ${n}</div>`).join("");
+  else         anl.textContent = "Aktif düğüm yok";
+
+  // Process buttons
+  if (s.processes) {
+    Object.entries(s.processes).forEach(([k, running]) => updateProcBtn(k, running));
+  }
+
+  // Topic data
+  const t = s.topic || {};
+  setVal("s-speed",    t.vehicle_speed?.toFixed(2) ?? "—");
+  setVal("s-steer",    t.steering?.toFixed(3) ?? "—");
+  setVal("s-throttle", Math.round(t.throttle ?? 50));
+  setVal("s-brake",    Math.round(t.brake ?? 0));
+
+  setBarW("bar-speed",    (t.vehicle_speed ?? 0) / 14 * 100);
+  setBarW("bar-steer",    50 + (t.steering ?? 0) / Math.PI * 50 * 3);
+  setBarW("bar-throttle", ((t.throttle ?? 50) - 50) / 70 * 100);
+  setBarW("bar-brake",    (t.brake ?? 0) / 50 * 100);
+
+  // BT State
+  const btEl = document.getElementById("bt-state");
+  const status = t.bt_status || "—";
+  btEl.textContent = status;
+  btEl.style.color = btColor(status);
+
+  document.getElementById("pid-info").textContent =
+    `cmd_vel: lin=${(t.cmd_vel_linear ?? 0).toFixed(2)} ang=${(t.cmd_vel_angular ?? 0).toFixed(2)}`;
+
+  // Lane offset
+  const offset = t.lane_offset ?? 0;
+  const pct = (offset + 1) / 2 * 100;
+  document.getElementById("lane-marker").style.left = `${Math.min(100, Math.max(0, pct))}%`;
+  const lv = document.getElementById("lane-val");
+  lv.textContent = (offset >= 0 ? "+" : "") + offset.toFixed(3);
+  lv.style.color = Math.abs(offset) > 0.5 ? "var(--red)" : Math.abs(offset) > 0.25 ? "var(--yellow)" : "var(--blue)";
+  drawLaneCanvas(offset);
+
+  // Topic values
+  setVal("tv-cmdlin",  (t.cmd_vel_linear  ?? 0).toFixed(3));
+  setVal("tv-cmdang",  (t.cmd_vel_angular ?? 0).toFixed(3));
+  setVal("tv-spd",     (t.vehicle_speed   ?? 0).toFixed(3));
+  setVal("tv-thrt",    (t.throttle        ?? 50).toFixed(1));
+  setVal("tv-brk",     (t.brake           ?? 0).toFixed(1));
+  setVal("tv-str",     (t.steering        ?? 0).toFixed(4));
+  setVal("tv-lane",    (t.lane_offset     ?? 0).toFixed(4));
+
+  // Traffic light
+  const red   = t.tl_red   ?? false;
+  const green = t.tl_green ?? false;
+  el("tl-red").className    = `tl-bulb ${red    ? "red-on"    : "red-off"}`;
+  el("tl-yellow").className = `tl-bulb ${(!red && !green) ? "yellow-on" : "yellow-off"}`;
+  el("tl-green").className  = `tl-bulb ${green  ? "green-on"  : "green-off"}`;
+  const tlText = el("tl-text");
+  if (red)         { tlText.textContent = "KIRMIZI"; tlText.style.color = "var(--red)"; }
+  else if (green)  { tlText.textContent = "YEŞİL";   tlText.style.color = "var(--green)"; }
+  else             { tlText.textContent = "SARI";     tlText.style.color = "var(--yellow)"; }
+
+  // Traffic signs
+  const signs = t.traffic_signs ?? [];
+  const sl = el("signs-list");
+  if (signs.length === 0) {
+    sl.innerHTML = '<span class="no-detect">Tespit yok</span>';
+  } else {
+    sl.innerHTML = signs.map(s => {
+      const conf = s.confidence != null ? `<span class="conf">${(s.confidence*100).toFixed(0)}%</span>` : "";
+      return `<span class="sign-chip">🚦 ${s.class ?? s} ${conf}</span>`;
+    }).join("");
+  }
+
+  // Logs (initial/full)
+  if (s.logs && !paused) {
+    allLogs = s.logs;
+    renderLogs();
+  }
+}
+
+// ─── Log Rendering ────────────────────────────────────────────────────────
+function pushLog(entry) {
+  if (!entry) return;
+  allLogs.push(entry);
+  if (allLogs.length > 1500) allLogs = allLogs.slice(-1000);
+  if (!paused) appendLogLine(entry);
+}
+
+function appendLogLine(entry) {
+  if (activeFilter && !entry.source.includes(activeFilter)) return;
+  const term = el("terminal");
+  const shouldScroll = term.scrollHeight - term.scrollTop - term.clientHeight < 60;
+  const div = document.createElement("div");
+  div.className = `log-line ${entry.level}`;
+  div.innerHTML = `<span class="log-ts">${entry.ts}</span>`
+                + `<span class="log-src">${entry.source}</span>`
+                + `<span class="log-msg">${escHtml(entry.message)}</span>`;
+  term.appendChild(div);
+  // Prune DOM
+  while (term.children.length > MAX_LOG_DOM) term.removeChild(term.firstChild);
+  if (shouldScroll) term.scrollTop = term.scrollHeight;
+}
+
+function renderLogs() {
+  const term = el("terminal");
+  const filt = activeFilter;
+  const filtered = filt ? allLogs.filter(l => l.source && l.source.includes(filt)) : allLogs;
+  term.innerHTML = "";
+  filtered.slice(-MAX_LOG_DOM).forEach(entry => {
+    const div = document.createElement("div");
+    div.className = `log-line ${entry.level}`;
+    div.innerHTML = `<span class="log-ts">${entry.ts}</span>`
+                  + `<span class="log-src">${entry.source}</span>`
+                  + `<span class="log-msg">${escHtml(entry.message)}</span>`;
+    term.appendChild(div);
+  });
+  term.scrollTop = term.scrollHeight;
+}
+
+// ─── Tab Switching ────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeFilter = tab.dataset.filter;
+    renderLogs();
+  });
+});
+
+function togglePause() {
+  paused = !paused;
+  el("btn-pause").textContent = paused ? "▶ Devam" : "⏸ Duraklat";
+  el("btn-pause").style.color = paused ? "var(--yellow)" : "";
+}
+
+function clearTerminal() {
+  allLogs = [];
+  el("terminal").innerHTML = "";
+}
+
+// ─── Process Buttons ──────────────────────────────────────────────────────
+const LAUNCH_CFGS = {
+  sim:       { label: "Simülasyon",      color: "#3fb950" },
+  nav:       { label: "Navigasyon",      color: "#58a6ff" },
+  slam:      { label: "SLAM Haritalama", color: "#d29922" },
+  obstacles: { label: "Engel Spawn",     color: "#bc8cff" },
+};
+const NODE_CFGS = {
+  bt_decision:   { label: "BT Karar",          color: "#f85149" },
+  ackermann:     { label: "Ackermann Köprüsü", color: "#58a6ff" },
+  vehicle_emu:   { label: "Araç Emülatörü",    color: "#db6d28" },
+  traffic_light: { label: "Trafik Işığı",      color: "#ffc107" },
+  traffic_sign:  { label: "Trafik İşareti",    color: "#8bc34a" },
+  lane_cv:       { label: "Şerit (CV)",         color: "#03a9f4" },
+  lane_dl:       { label: "Şerit (DL/UFLD)",   color: "#3f51b5" },
+  mission:       { label: "Görev Yöneticisi",  color: "#009688" },
+  obstacle_node: { label: "LiDAR Engelci",     color: "#9c27b0" },
+};
+
+function buildButtons() {
+  buildGroup("launch-list", LAUNCH_CFGS);
+  buildGroup("node-list",   NODE_CFGS);
+}
+
+function buildGroup(containerId, configs) {
+  const container = el(containerId);
+  Object.entries(configs).forEach(([key, cfg]) => {
+    const div = document.createElement("div");
+    div.className = "proc-btn";
+    div.id = `proc-${key}`;
+    div.innerHTML = `
+      <div class="dot-sm" style="background:${cfg.color}88"></div>
+      <span class="btn-name">${cfg.label}</span>
+      <button class="toggle" onclick="toggleProc('${key}', this)">▶ Başlat</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function toggleProc(key, btn) {
+  const row = el(`proc-${key}`);
+  const running = row.classList.contains("running");
+  sendCmd({ action: running ? "kill" : "launch", key });
+}
+
+function updateProcBtn(key, running, label) {
+  const row = el(`proc-${key}`);
+  if (!row) return;
+  const btn = row.querySelector(".toggle");
+  const dot = row.querySelector(".dot-sm");
+  const cfg = LAUNCH_CFGS[key] || NODE_CFGS[key];
+  if (running) {
+    row.classList.add("running");
+    btn.textContent = "■ Durdur";
+    if (cfg) dot.style.background = cfg.color;
+    dot.style.boxShadow = `0 0 6px ${cfg ? cfg.color : "var(--green)"}`;
+  } else {
+    row.classList.remove("running");
+    btn.textContent = "▶ Başlat";
+    if (cfg) dot.style.background = cfg.color + "88";
+    dot.style.boxShadow = "none";
+  }
+}
+
+// ─── Quick Publish ────────────────────────────────────────────────────────
+function pubCmdVel() {
+  const lin = parseFloat(el("inp-linear").value)  || 0;
+  const ang = parseFloat(el("inp-angular").value) || 0;
+  sendCmd({ action: "pub_cmd_vel", linear: lin, angular: ang });
+}
+function stopRobot() {
+  el("inp-linear").value  = "0.0";
+  el("inp-angular").value = "0.0";
+  sendCmd({ action: "pub_cmd_vel", linear: 0, angular: 0 });
+}
+
+// ─── Lane Canvas ──────────────────────────────────────────────────────────
+function drawLaneCanvas(offset) {
+  const canvas = el("lane-canvas");
+  const ctx    = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Road
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, W, H);
+
+  // Lane lines (white dashes)
+  const cx = W / 2;
+  ctx.setLineDash([12, 8]);
+  ctx.strokeStyle = "#ffffff44";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 60, 0); ctx.lineTo(cx - 60, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 60, 0); ctx.lineTo(cx + 60, H); ctx.stroke();
+
+  // Center dashed line
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = "#ffff0044";
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Robot indicator
+  const robotX = cx + offset * 60;
+  const color  = Math.abs(offset) > 0.5 ? "#f85149" : Math.abs(offset) > 0.25 ? "#d29922" : "#58a6ff";
+
+  // Triangle robot shape
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "#fff4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(robotX,      H * 0.3);
+  ctx.lineTo(robotX - 10, H * 0.7);
+  ctx.lineTo(robotX + 10, H * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Offset line
+  if (offset !== 0) {
+    ctx.strokeStyle = color + "88";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx, H * 0.5);
+    ctx.lineTo(robotX, H * 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ─── BT State Color ───────────────────────────────────────────────────────
+function btColor(state) {
+  if (!state) return "var(--dim)";
+  state = state.toUpperCase();
+  if (state.includes("STOP")   || state.includes("DUR"))      return "var(--red)";
+  if (state.includes("TURN")   || state.includes("DON"))      return "var(--yellow)";
+  if (state.includes("PARK"))                                  return "var(--purple)";
+  if (state.includes("TUNNEL") || state.includes("TUNEL"))    return "var(--blue)";
+  if (state.includes("NORMAL"))                               return "var(--green)";
+  if (state.includes("PASS")   || state.includes("YOLCU"))    return "var(--orange)";
+  return "var(--text)";
+}
+
+// ─── Clock ────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  el("clock").textContent = now.toTimeString().slice(0, 8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── Utils ────────────────────────────────────────────────────────────────
+const el   = id => document.getElementById(id);
+const setVal = (id, v) => { const e = el(id); if (e) e.textContent = v; };
+const setBarW = (id, pct) => {
+  const e = el(id);
+  if (e) e.style.width = Math.min(100, Math.max(0, pct)) + "%";
+};
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+buildButtons();
+connect();
+</script>
+</body>
+</html>

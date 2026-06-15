@@ -11,9 +11,28 @@ services:
     # Ağ ayarları (Foxglove için)
     ports:
       - "8765:8765"
+      - "8080:8080"   # RoboTaksi Dashboard
     # Klasör bağlama (Senin src -> Konteyner src)
     volumes:
       - ./src:/ros2_ws/src
     # Ortam değişkenleri
     environment:
       - DISPLAY=host.docker.internal:0
+
+  dashboard:
+    image: ros2_ws
+    container_name: ros2_dashboard
+    platform: linux/arm64
+    network_mode: "service:ros_dev"   # ROS2 node'larıyla aynı ağda
+    volumes:
+      - ./src:/ros2_ws/src
+      - ./ros2_dashboard:/ros2_dashboard
+    working_dir: /ros2_dashboard
+    command: >
+      bash -c "
+        pip install fastapi uvicorn pyyaml --quiet &&
+        python3 -m uvicorn backend:app --host 0.0.0.0 --port 8080 --log-level warning
+      "
+    environment:
+      - ROS_SETUP=/opt/ros/humble/setup.bash
+      - WS_SETUP=/ros2_ws/install/setup.bash

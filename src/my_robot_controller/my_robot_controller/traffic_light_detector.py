@@ -6,8 +6,10 @@ from cv_bridge import CvBridge
 from ultralytics import YOLO
 import json
 import os
+from ament_index_python.packages import get_package_share_directory
 
-MODEL_PATH = "/home/rana/Documents/GitHub/ros2-diff-drive/src/my_robot_controller/models/weights/traffic_light_best.pt"
+_pkg_share = get_package_share_directory('my_robot_controller')
+MODEL_PATH = os.path.join(_pkg_share, 'models', 'weights', 'traffic_light_best.pt')
 CONF_THRESHOLD = 0.5
 CLASS_NAMES = {0: 'Green', 1: 'Red', 2: 'Yellow'}
 

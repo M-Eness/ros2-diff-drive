@@ -4,6 +4,14 @@ from glob import glob
 
 package_name = 'my_robot_controller'
 
+# models/ altındaki tüm alt klasörleri install'a ekle
+model_data_files = []
+for dirpath, dirnames, filenames in os.walk('models'):
+    if filenames:
+        install_dir = os.path.join('share', package_name, dirpath)
+        files = [os.path.join(dirpath, f) for f in filenames]
+        model_data_files.append((install_dir, files))
+
 setup(
     name=package_name,
     version='0.0.0',
@@ -17,7 +25,7 @@ setup(
         (os.path.join('share', package_name, 'config'), glob('config/*')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
         (os.path.join('share', package_name, 'maps'), glob('maps/*')),
-    ],
+    ] + model_data_files,
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='root',

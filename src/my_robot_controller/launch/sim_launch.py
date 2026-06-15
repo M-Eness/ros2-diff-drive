@@ -108,7 +108,7 @@ def generate_launch_description():
     return LaunchDescription([
         SetEnvironmentVariable(
             name='IGN_GAZEBO_RESOURCE_PATH',
-            value='/home/rana/Documents/GitHub/ros2-diff-drive/src/my_robot_controller/models'
+            value=os.path.join(pkg_share, 'models')
         ),
         robot_state_publisher,
         joint_state_publisher,
