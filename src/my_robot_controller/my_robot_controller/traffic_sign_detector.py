@@ -7,6 +7,7 @@ from cv_bridge import CvBridge
 from ultralytics import YOLO
 import cv2
 import json
+from ament_index_python.packages import get_package_share_directory
 
 CLASS_NAMES = [
     "yaya_gecidi", "ada_etrafinda_don", "trafik_isiklari",
@@ -19,7 +20,8 @@ CLASS_NAMES = [
     "park_etmek_yasaktir", "park_yeri", "tunel", "durak", "dur"
 ]
 
-MODEL_PATH = "/home/rana/runs/detect/train/weights/best.pt"
+_pkg_share = get_package_share_directory('my_robot_controller')
+MODEL_PATH = os.path.join(_pkg_share, 'models', 'weights', 'best.pt')
 CONF_THRESHOLD = 0.5
 
 class TrafficSignDetector(Node):
