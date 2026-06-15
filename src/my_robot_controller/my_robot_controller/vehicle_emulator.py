@@ -1,4 +1,5 @@
 import rclpy
+import rclpy.parameter
 from rclpy.node import Node
 import math
 
@@ -12,10 +13,12 @@ from std_msgs.msg import Float32
 class VehicleEmulator(Node):
     def __init__(self):
         super().__init__('vehicle_emulator')
+        # vehicle_emulator wall_time'da çalışır — Gazebo'ya cmd_vel göndermesi
+        # gerçek zamanlı olmalı, use_sim_time=True yapılırsa frekans düşer
         
         # --- PUBLISHERS (ÇIKTILAR) ---
-        # Gazebo'daki sanal aracı hareket ettirmek için cmd_vel 
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        # Gazebo'ya ÖZEL topic — ackermann_bridge'in okuduğu /cmd_vel ile çakışmasın
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel_gz', 10)
         
         # Asıl köprü kodunuzu (Bridge) kandırmak için sahte gerçek hız verisi 
         # Not: Mesaj tipini smart_can_msgs yapısına göre ayarlayın.
@@ -48,21 +51,29 @@ class VehicleEmulator(Node):
         self.steering_angle = msg.data
 
     def physics_loop(self):
-        # 1. BOYlAMASINA DİNAMİKLER (Hızlanma ve Yavaşlama) [cite: 741]
+        # 1. BOYlAMASINA DİNAMİKLER (Hızlanma ve Yavaşlama)
+
+        # Maksimum hız sınırı: ~14 m/s ≈ 50 km/h (yarışma hızı)
+        MAX_SPEED = 14.0
+
         if self.throttle_pedal > 50.0:
-            # Gaz pedalı 50'nin üzerindeyse aracı ivmelendir [cite: 742, 743]
-            acceleration = (self.throttle_pedal - 50.0) * 0.015
+            # Her fizik adımında küçük ivme: dt=0.05s → gerçekçi 0-50km/h ≈ 5 saniye
+            acceleration = (self.throttle_pedal - 50.0) * 0.003
             self.current_speed += acceleration
-            
+
         if self.brake_pedal > 0.0:
-            # Fren pedalına basıldıysa aracı yavaşlat [cite: 745, 746]
-            deceleration = self.brake_pedal * 0.02
+            # Fren: brake_pedal 0-50 arası → max 0.15 m/s² yavaşlama
+            deceleration = self.brake_pedal * 0.003
             self.current_speed -= deceleration
-            
-        # Sürtünme: Pedallara basılmıyorsa araç yavaşlayarak durmalı [cite: 748, 749]
-        self.current_speed *= 0.99
-        
-        # Hızın negatif olmasını (geri vites durumu hariç) engelle
+
+        # Hıza bağımlı sürtünme: hız arttıkça sürtünme de artar (aerodinamik direnç)
+        friction = 1.0 - (0.005 + 0.0005 * self.current_speed)
+        self.current_speed *= friction
+
+        # Maksimum hız sınırı
+        self.current_speed = min(self.current_speed, MAX_SPEED)
+
+        # Negatif hız engeli
         if self.current_speed < 0.0:
             self.current_speed = 0.0
 
