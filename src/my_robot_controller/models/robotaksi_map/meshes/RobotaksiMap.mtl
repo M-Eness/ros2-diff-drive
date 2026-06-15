@@ -1,4 +1,4 @@
-# Blender 5.0.0 MTL File: 'Untitled.blend'
+# Blender 5.0.0 MTL File: 'None'
 # www.blender.org
 
 newmtl Ada_Yesil_006
@@ -11,15 +11,16 @@ Ni 1.500000
 d 1.000000
 illum 2
 
-newmtl Asfalt_Siyah_020
+newmtl Asphalt_material_14
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.000000 0.000000 0.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+map_Kd -s 0.016666668 0.016666668 1 C:/Asphalt_texture_14.png
+map_Bump -s 0.016666668 0.016666668 1 -bm 1.000000 C:/NormalMap-14.png
 
 newmtl Beton_Gri_021
 Ns 250.000000
@@ -98,8 +99,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd Yaya-Gecidi.png
-map_d Yaya-Gecidi.png
+map_Kd C:/Yaya-Gecidi 1.png
+map_d C:/Yaya-Gecidi 1.png
 
 newmtl Mat_Front_PNG_001_1
 Ns 250.000000
@@ -128,8 +129,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd Yaya-Gecidi.png
-map_d Yaya-Gecidi.png
+map_Kd C:/Yaya-Gecidi 1.png
+map_d C:/Yaya-Gecidi 1.png
 
 newmtl Material_002
 Ns 250.000000
@@ -139,7 +140,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd TrafikIsıgı.jpg
+map_Kd C:/TrafikIsıgı.jpg
 
 newmtl Material_003
 Ns 250.000000
@@ -149,7 +150,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd Tunel.jpg
+map_Kd C:/Tunel.jpg
 
 newmtl Material_003_1
 Ns 250.000000
@@ -158,8 +159,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SeritDuzenleme1.png
-map_d SeritDuzenleme1.png
+map_Kd C:/ŞeritDuzenleme1.png
+map_d C:/ŞeritDuzenleme1.png
 
 newmtl Material_003_2
 Ns 250.000000
@@ -168,8 +169,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SeritDuzenleme2.png
-map_d SeritDuzenleme2.png
+map_Kd C:/SeritDuzenleme2.png
+map_d C:/SeritDuzenleme2.png
 
 newmtl Material_005_1
 Ns 250.000000
@@ -178,8 +179,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd Dur.png
-map_d Dur.png
+map_Kd C:/Dur (8).png
+map_d C:/Dur (8).png
 
 newmtl Material_007
 Ns 250.000000
@@ -188,8 +189,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd ParkEtmekYasak.png
-map_d ParkEtmekYasak.png
+map_Kd C:/ParkEtmekYasak.png
+map_d C:/ParkEtmekYasak.png
 
 newmtl Material_007_1
 Ns 250.000000
@@ -198,8 +199,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SagaDonulmez.png
-map_d SagaDonulmez.png
+map_Kd C:/SagaDonulmez (1).png
+map_d C:/SagaDonulmez (1).png
 
 newmtl Material_007_10
 Ns 250.000000
@@ -209,7 +210,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd IleriSolaMecburi.jpg
+map_Kd C:/IleriSolaMecburi.jpg
 
 newmtl Material_007_11
 Ns 250.000000
@@ -219,7 +220,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd IleriSagaMecburi.jpg
+map_Kd C:/İleriSagaMecburi.jpg
 
 newmtl Material_007_12
 Ns 250.000000
@@ -229,7 +230,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd IleriSolaMecburi.jpg
+map_Kd C:/İleriSolaMecburi.jpg
 
 newmtl Material_007_13
 Ns 250.000000
@@ -239,7 +240,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd AdaetrafindaDonunuz.jpg
+map_Kd C:/AdaetrafındaDonunuz.jpg
 
 newmtl Material_007_2
 Ns 250.000000
@@ -248,8 +249,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SagaDonulmez.png
-map_d SagaDonulmez.png
+map_Kd C:/SagaDonulmez (1).png
+map_d C:/SagaDonulmez (1).png
 
 newmtl Material_007_3
 Ns 250.000000
@@ -258,8 +259,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd GirissizYol.png
-map_d GirissizYol.png
+map_Kd C:/GirissizYol.png
+map_d C:/GirissizYol.png
 
 newmtl Material_007_4
 Ns 250.000000
@@ -268,8 +269,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SagdanGiriniz.png
-map_d SagdanGiriniz.png
+map_Kd C:/SagdanGiriniz.png
+map_d C:/SagdanGiriniz.png
 
 newmtl Material_007_5
 Ns 250.000000
@@ -278,8 +279,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SoldanGiriniz.png
-map_d SoldanGiriniz.png
+map_Kd C:/SoldanGiriniz.png
+map_d C:/SoldanGiriniz.png
 
 newmtl Material_007_6
 Ns 250.000000
@@ -288,8 +289,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SagMecburiYon.png
-map_d SagMecburiYon.png
+map_Kd C:/SagMecburiYon.png
+map_d C:/SagMecburiYon.png
 
 newmtl Material_007_7
 Ns 250.000000
@@ -298,8 +299,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd SolMecburiYon.png
-map_d SolMecburiYon.png
+map_Kd C:/SolMecburiYon.png
+map_d C:/SolMecburiYon.png
 
 newmtl Material_007_8
 Ns 250.000000
@@ -308,8 +309,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd IleriMecburi.png
-map_d IleriMecburi.png
+map_Kd C:/İleriMecburi.png
+map_d C:/İleriMecburi.png
 
 newmtl Material_007_9
 Ns 250.000000
@@ -318,8 +319,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd IleriveSagaMecburi.png
-map_d IleriveSagaMecburi.png
+map_Kd C:/İleriveSagaMecburi.png
+map_d C:/İleriveSagaMecburi.png
 
 newmtl Material_1
 Ns 250.000000
@@ -328,8 +329,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd Durak.png
-map_d Durak.png
+map_Kd C:/Durak (1).png
+map_d C:/Durak (1).png
 
 newmtl Material_2
 Ns 250.000000
@@ -338,8 +339,8 @@ Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 illum 2
-map_Kd IkiYonluYol.png
-map_d IkiYonluYol.png
+map_Kd C:/İkiYonluYol.png
+map_d C:/İkiYonluYol.png
 
 newmtl Metalik_Arka_1
 Ns 250.000000
@@ -350,6 +351,36 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+
+newmtl TL_Body
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd C:/tl_simple_body_diff.png
+map_d C:/tl_simple_body_diff.png
+
+newmtl TL_Lights_Off
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd C:/tl_simple_lights_diff.png
+map_d C:/tl_simple_lights_diff.png
+
+newmtl TL_Post
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd C:/tl_post_01_diff.png
+map_d C:/tl_post_01_diff.png
 
 newmtl Trafik_Isigi_Mat_002
 Ns 250.000000
