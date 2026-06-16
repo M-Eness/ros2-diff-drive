@@ -20,6 +20,7 @@ TUNNEL_SIGNS      = {"tunel"}
 NORMAL_SPEED  = 0.3   # m/s
 SLOW_SPEED    = 0.15
 TURN_SPEED    = 0.5   # rad/s
+LANE_KP       = 1.2   # şerit merkezi PID oranı
 TURN_DURATION = 2.5   # saniye
 PASSENGER_WAIT_MIN = 15.0
 PASSENGER_WAIT_MAX = 20.0
@@ -38,10 +39,12 @@ class BTDecisionNode(Node):
         super().__init__('bt_decision_node')
 
         # Algı değişkenleri
-        self.traffic_light_red   = False
-        self.traffic_light_green = True
-        self.current_sign        = None
-        self.lane_offset         = 0.0
+        self.traffic_light_red    = False
+        self.traffic_light_green  = True
+        self.current_sign         = None
+        self.lane_offset          = 0.0
+        self.lane_left_detected   = False
+        self.lane_right_detected  = False
 
         # Durum makinesi
         self.state = "NORMAL"  # NORMAL, STOP, NO_ENTRY, SLOW, TURN_RIGHT, TURN_LEFT, PASSENGER, PARK, TUNNEL
@@ -61,11 +64,12 @@ class BTDecisionNode(Node):
         self.nav2_cmd: Twist | None = None
 
         # Subscriptions
-        self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,   10)
-        self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green, 10)
-        self.create_subscription(String, '/traffic_sign_detections',               self.cb_sign,  10)
-        self.create_subscription(Float32,'/perception/lane_offset',                self.cb_lane,  10)
-        self.create_subscription(Twist,  '/cmd_vel_nav2',                          self.cb_nav2,  10)
+        self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,       10)
+        self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green,     10)
+        self.create_subscription(String, '/traffic_sign_detections',               self.cb_sign,      10)
+        self.create_subscription(Float32,'/perception/lane_offset',                self.cb_lane,      10)
+        self.create_subscription(String, '/perception/lane_info',                  self.cb_lane_info, 10)
+        self.create_subscription(Twist,  '/cmd_vel_nav2',                          self.cb_nav2,      10)
 
         # Publishers — /cmd_vel'e tek yazan bu node
         self.cmd_pub    = self.create_publisher(Twist,  '/cmd_vel',    10)
@@ -92,6 +96,14 @@ class BTDecisionNode(Node):
 
     def cb_lane(self, msg):
         self.lane_offset = msg.data
+
+    def cb_lane_info(self, msg):
+        try:
+            info = json.loads(msg.data)
+            self.lane_left_detected  = info.get('left', False)
+            self.lane_right_detected = info.get('right', False)
+        except Exception:
+            pass
 
     def cb_sign(self, msg):
         if time.time() < self.sign_cooldown_until:
@@ -291,12 +303,23 @@ class BTDecisionNode(Node):
         # ── Öncelik 5: Normal sürüş — Nav2'yi relay et ───────────────────
         # BT override yoksa Nav2'nin yolunu takip et; nav2 bağlı değilse
         # lane-offset ile fallback yap.
+        lane_visible = self.lane_left_detected or self.lane_right_detected
+
         if sign in SLOW_SIGNS:
             self._move(SLOW_SPEED, -self.lane_offset * 0.8)
             self._publish_status(f"YAVAS_SUR_{sign}")
         elif self.nav2_cmd is not None:
-            self.cmd_pub.publish(self.nav2_cmd)
-            self._publish_status("NORMAL_SURUS_NAV2")
+            t = Twist()
+            t.linear.x = self.nav2_cmd.linear.x
+            if lane_visible:
+                # GPS hızını koru, direksiyon şeritten gelsin
+                t.angular.z = -self.lane_offset * LANE_KP
+                self._publish_status("NORMAL_SURUS_LANE_CENTERED")
+            else:
+                # Şerit görünmüyor — Nav2'nin angular'ına güven
+                t.angular.z = self.nav2_cmd.angular.z
+                self._publish_status("NORMAL_SURUS_NAV2")
+            self.cmd_pub.publish(t)
         else:
             self._move(NORMAL_SPEED, -self.lane_offset * 0.8)
             self._publish_status("NORMAL_SURUS_LANE")
