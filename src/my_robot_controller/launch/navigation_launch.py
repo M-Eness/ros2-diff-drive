@@ -72,8 +72,120 @@ def generate_launch_description():
         ]
     )
 
+    # 4. Algı nodeları — 5 saniye bekle, simülasyon hazır olsun
+    perception_nodes = TimerAction(
+        period=5.0,
+        actions=[
+            Node(
+                package='my_robot_controller',
+                executable='traffic_sign_detector',
+                name='traffic_sign_detector',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            ),
+            Node(
+                package='my_robot_controller',
+                executable='traffic_light_detector',
+                name='traffic_light_detector',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            ),
+            Node(
+                package='my_robot_controller',
+                executable='lane_detector_cv',
+                name='lane_detector_cv',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            ),
+        ]
+    )
+
+    # 5. Araç kontrol zinciri — 5 saniye bekle
+    vehicle_nodes = TimerAction(
+        period=5.0,
+        actions=[
+            Node(
+                package='my_robot_controller',
+                executable='ackermann_bridge',
+                name='ackermann_bridge',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            ),
+            Node(
+                package='my_robot_controller',
+                executable='vehicle_emulator',
+                name='vehicle_emulator',
+                output='screen'
+            ),
+        ]
+    )
+
+    # 6. Statik engel algılama — 7 saniye bekle, Nav2 hazır olsun
+    static_obstacle_node = TimerAction(
+        period=7.0,
+        actions=[
+            Node(
+                package='my_robot_controller',
+                executable='static_obstacle_node',
+                name='static_obstacle_detector',
+                output='screen',
+                parameters=[{
+                    'use_sim_time': True,
+                    'lidar_topic': '/scan',
+                    'base_frame': 'base_link',
+                    'roi_x_min': -1.0,
+                    'roi_x_max': 15.0,
+                    'roi_y_min': -4.0,
+                    'roi_y_max': 4.0,
+                    'ground_z_threshold': -0.1,
+                    'obstacle_z_min': -0.05,
+                    'obstacle_z_max': 2.5,
+                    'voxel_size': 0.1,
+                    'cluster_tolerance': 0.35,
+                    'min_cluster_size': 4,
+                    'max_cluster_size': 8000,
+                    'min_obstacle_width': 0.08,
+                    'max_obstacle_width': 10.0,
+                    'laser_range_max': 15.0,
+                }]
+            )
+        ]
+    )
+
+    # 7. BT karar düğümü — 8 saniye bekle, Nav2 + algı hazır olsun
+    bt_decision = TimerAction(
+        period=8.0,
+        actions=[
+            Node(
+                package='my_robot_controller',
+                executable='bt_decision_node',
+                name='bt_decision_node',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            )
+        ]
+    )
+
+    # 8. Görev yöneticisi — 10 saniye bekle, her şey hazır olsun
+    mission = TimerAction(
+        period=10.0,
+        actions=[
+            Node(
+                package='my_robot_controller',
+                executable='mission_manager',
+                name='mission_manager',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            )
+        ]
+    )
+
     return LaunchDescription([
         sim_launch,
         nav2_launch,
+        perception_nodes,
+        vehicle_nodes,
         static_obstacle_node,
+        bt_decision,
+        mission,
     ])
