@@ -712,6 +712,10 @@ function btColor(state) {
   return "var(--text)";
 }
 
+// ─── Utils ────────────────────────────────────────────────────────────────
+const el   = id => document.getElementById(id);
+const setVal = (id, v) => { const e = el(id); if (e) e.textContent = v; };
+
 // ─── Clock ────────────────────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
@@ -719,10 +723,6 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
-
-// ─── Utils ────────────────────────────────────────────────────────────────
-const el   = id => document.getElementById(id);
-const setVal = (id, v) => { const e = el(id); if (e) e.textContent = v; };
 const setBarW = (id, pct) => {
   const e = el(id);
   if (e) e.style.width = Math.min(100, Math.max(0, pct)) + "%";
