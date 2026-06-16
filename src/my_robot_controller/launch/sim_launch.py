@@ -49,7 +49,7 @@ def generate_launch_description():
     world_file = os.path.join(pkg_share, 'worlds', 'robotaksi.world')
 
     gazebo = ExecuteProcess(
-        cmd=['ign', 'gazebo', '-r', '-s', '-v', '4', world_file],
+        cmd=['ign', 'gazebo', '-r', '-v', '4', world_file],
         output='screen'
     )
 
@@ -105,6 +105,17 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}]
     )
 
+    # ========================================================================
+    # NODE 7: VEHICLE EMULATOR
+    # ========================================================================
+    vehicle_emulator_node = Node(
+        package=pkg_name,
+        executable='vehicle_emulator',
+        name='vehicle_emulator',
+        output='screen',
+        parameters=[{'use_sim_time': True}]
+    )
+
     return LaunchDescription([
         SetEnvironmentVariable(
             name='IGN_GAZEBO_RESOURCE_PATH',
@@ -116,5 +127,6 @@ def generate_launch_description():
         spawn_entity,
         ros_gz_bridge,
         ekf_node,
-        lidar_frame_fix
+        lidar_frame_fix,
+        vehicle_emulator_node
     ])
