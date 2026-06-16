@@ -26,6 +26,13 @@ PASSENGER_WAIT_MAX = 20.0
 STOP_DURATION = 3.0
 COOLDOWN      = 10.0  # aynı levhayı yoksay süresi
 
+# Park manevra parametreleri
+PARK_FORWARD_DURATION    = 1.5   # saniye — spot geçişi için ileri git
+PARK_REVERSE_DURATION    = 3.0   # saniye — geri + dönüş
+PARK_STRAIGHTEN_DURATION = 2.0   # saniye — düzleşme
+PARK_REVERSE_SPEED       = -0.10 # m/s
+PARK_TURN_SPEED          = 0.45  # rad/s
+
 class BTDecisionNode(Node):
     def __init__(self):
         super().__init__('bt_decision_node')
@@ -45,6 +52,10 @@ class BTDecisionNode(Node):
         self.passenger_until     = 0.0
         self.sign_cooldown_until = 0.0
         self.green_light_time    = None  # yeşil ışık ne zaman yaktı
+
+        # Park alt-durumu
+        self.park_phase       = "IDLE"  # IDLE, ILERI, GERI_DONUS, DUZELME, TAMAM
+        self.park_phase_until = 0.0
 
         # Nav2'nin cmd_vel'i (düşük öncelik — BT override etmediğinde relay edilir)
         self.nav2_cmd: Twist | None = None
@@ -174,9 +185,40 @@ class BTDecisionNode(Node):
                 self.state = "NORMAL"
 
         if self.state == "PARK":
-            # Park modunda dur — Squad 3 park algoritmasını entegre edecek
+            if self.park_phase == "IDLE":
+                self.park_phase = "ILERI"
+                self.park_phase_until = now + PARK_FORWARD_DURATION
+                self.get_logger().info("Park: ileri hizalama başlıyor.")
+
+            if self.park_phase == "ILERI":
+                if now < self.park_phase_until:
+                    self._move(NORMAL_SPEED * 0.5)
+                    self._publish_status("PARK_HIZALAMA")
+                    return
+                self.park_phase = "GERI_DONUS"
+                self.park_phase_until = now + PARK_REVERSE_DURATION
+                self.get_logger().info("Park: geri dönüş başlıyor.")
+
+            if self.park_phase == "GERI_DONUS":
+                if now < self.park_phase_until:
+                    self._move(PARK_REVERSE_SPEED, -PARK_TURN_SPEED)
+                    self._publish_status("PARK_GERI_DONUS")
+                    return
+                self.park_phase = "DUZELME"
+                self.park_phase_until = now + PARK_STRAIGHTEN_DURATION
+                self.get_logger().info("Park: düzleşme başlıyor.")
+
+            if self.park_phase == "DUZELME":
+                if now < self.park_phase_until:
+                    self._move(PARK_REVERSE_SPEED, PARK_TURN_SPEED)
+                    self._publish_status("PARK_DUZELME")
+                    return
+                self.park_phase = "TAMAM"
+                self.get_logger().info("Park: tamamlandı.")
+
+            # TAMAM — spotta dur
             self._stop()
-            self._publish_status("PARK_MODU")
+            self._publish_status("PARK_TAMAM")
             return
 
         if self.state == "TUNNEL":
@@ -234,6 +276,7 @@ class BTDecisionNode(Node):
         if sign in PARK_SIGNS:
             self.get_logger().info("PARK YERİ — park moduna geçiliyor.")
             self.state = "PARK"
+            self.park_phase = "IDLE"
             self._set_cooldown()
             self._publish_status("PARK_BASLADI")
             return
