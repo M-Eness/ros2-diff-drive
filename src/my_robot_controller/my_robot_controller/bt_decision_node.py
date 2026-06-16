@@ -46,13 +46,17 @@ class BTDecisionNode(Node):
         self.sign_cooldown_until = 0.0
         self.green_light_time    = None  # yeşil ışık ne zaman yaktı
 
+        # Nav2'nin cmd_vel'i (düşük öncelik — BT override etmediğinde relay edilir)
+        self.nav2_cmd: Twist | None = None
+
         # Subscriptions
         self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,   10)
         self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green, 10)
         self.create_subscription(String, '/traffic_sign_detections',               self.cb_sign,  10)
         self.create_subscription(Float32,'/perception/lane_offset',                self.cb_lane,  10)
+        self.create_subscription(Twist,  '/cmd_vel_nav2',                          self.cb_nav2,  10)
 
-        # Publishers
+        # Publishers — /cmd_vel'e tek yazan bu node
         self.cmd_pub    = self.create_publisher(Twist,  '/cmd_vel',    10)
         self.status_pub = self.create_publisher(String, '/bt/status',  10)
 
@@ -61,6 +65,9 @@ class BTDecisionNode(Node):
         self.get_logger().info("BT Decision Node başlatıldı.")
 
     # ── Callbacks ──────────────────────────────────────────────────────────
+    def cb_nav2(self, msg):
+        self.nav2_cmd = msg
+
     def cb_red(self, msg):
         self.traffic_light_red = msg.data
         if msg.data:
@@ -238,15 +245,18 @@ class BTDecisionNode(Node):
             self._publish_status("TUNEL_BASLADI")
             return
 
-        # ── Öncelik 5: Normal sürüş ───────────────────────────────────────
-        speed = SLOW_SPEED if sign in SLOW_SIGNS else NORMAL_SPEED
-        angular = -self.lane_offset * 0.8
-        self._move(speed, angular)
-
+        # ── Öncelik 5: Normal sürüş — Nav2'yi relay et ───────────────────
+        # BT override yoksa Nav2'nin yolunu takip et; nav2 bağlı değilse
+        # lane-offset ile fallback yap.
         if sign in SLOW_SIGNS:
+            self._move(SLOW_SPEED, -self.lane_offset * 0.8)
             self._publish_status(f"YAVAS_SUR_{sign}")
+        elif self.nav2_cmd is not None:
+            self.cmd_pub.publish(self.nav2_cmd)
+            self._publish_status("NORMAL_SURUS_NAV2")
         else:
-            self._publish_status("NORMAL_SURUS")
+            self._move(NORMAL_SPEED, -self.lane_offset * 0.8)
+            self._publish_status("NORMAL_SURUS_LANE")
 
 
 def main(args=None):

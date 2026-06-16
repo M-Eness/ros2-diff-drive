@@ -114,6 +114,7 @@ controller_server:
   ros__parameters:
     use_sim_time: True
     controller_frequency: 20.0
+    cmd_vel_topic: /cmd_vel_nav2   # bt_decision_node relay eder; /cmd_vel'e tek yazan BT
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
