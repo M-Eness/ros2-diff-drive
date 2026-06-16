@@ -53,7 +53,7 @@ def ros_cmd(cmd: str) -> str:
 
 # ─── Launch & Node Definitions ─────────────────────────────────────────────
 LAUNCH_CONFIGS = {
-    "sim":        {"label": "Simülasyon",        "cmd": f"ros2 launch {PKG} sim_launch.py",         "color": "#3fb950"},
+    "sim":        {"label": "Simülasyon",        "cmd": f"xvfb-run -a ros2 launch {PKG} sim_launch.py", "color": "#3fb950"},
     "nav":        {"label": "Navigasyon",         "cmd": f"ros2 launch {PKG} navigation_launch.py",  "color": "#58a6ff"},
     "slam":       {"label": "SLAM Haritalama",    "cmd": f"ros2 launch {PKG} mapping_launch.py",     "color": "#d29922"},
     "obstacles":  {"label": "Engel Spawn",        "cmd": f"ros2 launch {PKG} spawn_obstacle_launch.py", "color": "#bc8cff"},
@@ -163,7 +163,7 @@ async def broadcast(data: dict):
             await ws.send_json(data)
         except Exception:
             dead.add(ws)
-    clients -= dead
+    clients.difference_update(dead)
 
 
 async def handle_command(cmd: dict, ws: WebSocket):
@@ -325,14 +325,18 @@ def _apply_topic(topic: str, msg):
 
 
 def _check_ros():
+    # Daemon'u başlat — node listesini önbelleğe alır, subprocess'ten hızlı okunur
+    subprocess.run(ros_cmd("ros2 daemon start"), shell=True,
+                   capture_output=True, timeout=10)
+    time.sleep(8)  # Daemon'un DDS graph'ını keşfetmesi için bekle
     while True:
         try:
             r = subprocess.run(
                 ros_cmd("ros2 node list"),
-                shell=True, capture_output=True, text=True, timeout=4,
+                shell=True, capture_output=True, text=True, timeout=15,
             )
-            connected   = r.returncode == 0
-            active      = [n.strip() for n in r.stdout.splitlines() if n.strip()]
+            active = [n.strip() for n in r.stdout.splitlines() if n.strip()]
+            connected = r.returncode == 0 and len(active) > 0
             G.ros_connected = connected
             G.active_nodes  = active
         except Exception:

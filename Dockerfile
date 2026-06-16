@@ -35,12 +35,27 @@ RUN apt-get update && apt-get install -y \
     ros-humble-xacro \
     ros-humble-ros2-control \
     ros-humble-ros2-controllers \
+    # --- Algılama (Kamera / YOLO) ---
+    ros-humble-cv-bridge \
+    python3-opencv \
+    python3-pip \
+    # --- Headless Gazebo ---
+    xvfb \
     # Geliştirme Araçları
     python3-colcon-common-extensions \
     git nano \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Ortam Ayarları
+# 5. Python Bağımlılıkları (YOLO + Dashboard)
+RUN python3 -m pip install --no-cache-dir \
+    "numpy<2" \
+    ultralytics \
+    fastapi \
+    "uvicorn[standard]" \
+    websockets \
+    pyyaml
+
+# 6. Ortam Ayarları
 WORKDIR /ros2_ws
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
