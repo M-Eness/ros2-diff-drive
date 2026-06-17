@@ -53,6 +53,8 @@ class StaticObstacleDetector(Node):
         super().__init__('static_obstacle_detector')
 
         # --- Parametreler ---
+        # input_type: "pointcloud" (gercek VLP-16) veya "laserscan" (sim 2D lidar)
+        self.declare_parameter('input_type', 'pointcloud')
         self.declare_parameter('lidar_topic', '/velodyne_points')
         self.declare_parameter('base_frame', 'base_link')
 
@@ -100,13 +102,23 @@ class StaticObstacleDetector(Node):
             depth=1
         )
 
-        # Subscriber
-        self.lidar_sub = self.create_subscription(
-            PointCloud2,
-            self.lidar_topic,
-            self.lidar_callback,
-            sensor_qos
-        )
+        # Subscriber — input_type'a gore LaserScan veya PointCloud2
+        if self.input_type == 'laserscan':
+            self.lidar_sub = self.create_subscription(
+                LaserScan,
+                self.lidar_topic,
+                self.laserscan_callback,
+                sensor_qos
+            )
+            self.get_logger().info('Mod: LaserScan (simülasyon)')
+        else:
+            self.lidar_sub = self.create_subscription(
+                PointCloud2,
+                self.lidar_topic,
+                self.lidar_callback,
+                sensor_qos
+            )
+            self.get_logger().info('Mod: PointCloud2 (gerçek donanım)')
 
         # Publisher'lar
         self.marker_pub = self.create_publisher(
@@ -124,6 +136,7 @@ class StaticObstacleDetector(Node):
 
     def _load_params(self):
         """Parametreleri yukle."""
+        self.input_type = self.get_parameter('input_type').value
         self.lidar_topic = self.get_parameter('lidar_topic').value
         self.base_frame = self.get_parameter('base_frame').value
 
@@ -156,7 +169,52 @@ class StaticObstacleDetector(Node):
         self.scan_range_max = self.get_parameter('laser_range_max').value
 
     # ------------------------------------------------------------------
-    # Ana callback
+    # LaserScan callback (simülasyon modu)
+    # ------------------------------------------------------------------
+
+    def laserscan_callback(self, msg: LaserScan):
+        """2D LaserScan'i numpy array'e cevirip pipeline'a sok."""
+        self.frame_count += 1
+
+        angles = np.arange(
+            msg.angle_min,
+            msg.angle_min + len(msg.ranges) * msg.angle_increment,
+            msg.angle_increment,
+            dtype=np.float32
+        )[:len(msg.ranges)]
+
+        ranges = np.array(msg.ranges, dtype=np.float32)
+        valid = np.isfinite(ranges) & (ranges >= msg.range_min) & (ranges <= msg.range_max)
+        angles = angles[valid]
+        ranges = ranges[valid]
+
+        x = ranges * np.cos(angles)
+        y = ranges * np.sin(angles)
+        z = np.zeros_like(x)
+        points = np.column_stack([x, y, z])
+
+        if len(points) < 5:
+            self._publish_empty_scan(msg.header)
+            return
+
+        # ROI (z ekseni anlamli degil, xy filtresi yeterli)
+        points = self._roi_filter(points)
+        if len(points) < 5:
+            self._publish_empty_scan(msg.header)
+            return
+
+        # 2D modda zemin cikarma atlanir (tum noktalar z=0)
+        points = self._voxel_downsample(points)
+        clusters = self._euclidean_clustering(points)
+
+        if clusters:
+            self._publish_markers(clusters, msg.header)
+            self._publish_poses(clusters, msg.header)
+
+        self._publish_laser_scan(points, msg.header)
+
+    # ------------------------------------------------------------------
+    # Ana callback (PointCloud2 / gercek donanim modu)
     # ------------------------------------------------------------------
 
     def lidar_callback(self, msg: PointCloud2):
