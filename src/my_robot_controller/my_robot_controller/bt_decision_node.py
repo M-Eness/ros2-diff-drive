@@ -65,6 +65,12 @@ class BTDecisionNode(Node):
         # Nav2'nin cmd_vel'i (düşük öncelik — BT override etmediğinde relay edilir)
         self.nav2_cmd: Twist | None = None
 
+        # Tur modu: 1 = BİRİNCİ_TUR (ışık/levha yok, sadece şerit+engel)
+        #           2 = İKİNCİ_TUR  (tam algı aktif)
+        self.declare_parameter('tur_modu', 2)
+        self.tur_modu = self.get_parameter('tur_modu').value
+        self.get_logger().info(f"Tur modu: {self.tur_modu}")
+
         # Subscriptions
         self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,        10)
         self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green,      10)
@@ -153,6 +159,14 @@ class BTDecisionNode(Node):
     # ── Ana BT Tick ────────────────────────────────────────────────────────
     def bt_tick(self):
         now = time.time()
+
+        # ── BİRİNCİ TUR MODU: ışık ve levha algısı devre dışı ────────────
+        if self.tur_modu == 1:
+            # Sadece şerit takibi ve engel mantığı
+            angular = -self.lane_offset * 0.8
+            self._move(NORMAL_SPEED, angular)
+            self._publish_status("BIRINCI_TUR_SERIT")
+            return
 
         # ── Öncelik 1: KIRMIZI IŞIK ───────────────────────────────────────
         if self.traffic_light_red:

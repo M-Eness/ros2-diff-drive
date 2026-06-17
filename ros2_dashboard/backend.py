@@ -60,7 +60,8 @@ LAUNCH_CONFIGS = {
 }
 
 NODE_CONFIGS = {
-    "bt_decision":    {"label": "BT Karar",          "cmd": f"ros2 run {PKG} bt_decision_node",        "color": "#f85149"},
+    "bt_tur1":        {"label": "BT — 1. Tur",        "cmd": f"ros2 run {PKG} bt_decision_node --ros-args -p tur_modu:=1", "color": "#f85149"},
+    "bt_decision":    {"label": "BT — 2. Tur",        "cmd": f"ros2 run {PKG} bt_decision_node --ros-args -p tur_modu:=2", "color": "#ff6b6b"},
     "ackermann":      {"label": "Ackermann Köprüsü", "cmd": f"ros2 run {PKG} ackermann_bridge",        "color": "#58a6ff"},
     "vehicle_emu":    {"label": "Araç Emülatörü",    "cmd": f"ros2 run {PKG} vehicle_emulator",        "color": "#db6d28"},
     "traffic_light":  {"label": "Trafik Işığı",      "cmd": f"ros2 run {PKG} traffic_light_detector",  "color": "#ffc107"},
