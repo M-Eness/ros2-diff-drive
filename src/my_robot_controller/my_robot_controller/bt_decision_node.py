@@ -3,6 +3,7 @@ from rclpy.node import Node
 from std_msgs.msg import String, Bool, Float32
 from geometry_msgs.msg import Twist
 import json
+import random
 import time
 
 # Levha grupları
@@ -277,8 +278,9 @@ class BTDecisionNode(Node):
             return
 
         if sign in PASSENGER_SIGNS:
-            self.get_logger().info("DURAK — yolcu alınıyor (15-20sn).")
-            self.passenger_until = now + PASSENGER_WAIT_MIN
+            wait = random.uniform(PASSENGER_WAIT_MIN, PASSENGER_WAIT_MAX)
+            self.get_logger().info(f"DURAK — yolcu alınıyor ({wait:.1f}sn).")
+            self.passenger_until = now + wait
             self.state = "PASSENGER"
             self._set_cooldown()
             self._stop()

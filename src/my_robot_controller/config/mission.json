@@ -7,7 +7,7 @@
         "name": "gorev_1",
         "description": "1. Yolcu Alma Noktası",
         "gorev_tipi": "DURAK",
-        "bekleme_suresi": 5
+        "bekleme_suresi": 15
       },
       "geometry": {
         "type": "Point",
