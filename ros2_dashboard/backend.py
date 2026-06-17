@@ -17,7 +17,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 # ─── Configuration ─────────────────────────────────────────────────────────
 PKG = "my_robot_controller"
@@ -135,6 +135,10 @@ class State:
 G = State()
 app = FastAPI(title="RoboTaksi Dashboard")
 clients: set[WebSocket] = set()
+
+# ─── Camera Frame Buffer ────────────────────────────────────────────────────
+_latest_frame: Optional[bytes] = None
+_frame_lock = threading.Lock()
 
 
 # ─── WebSocket Hub ──────────────────────────────────────────────────────────
@@ -345,8 +349,72 @@ def _check_ros():
         time.sleep(3)
 
 
+_CAMERA_SCRIPT_PATH = "/tmp/_dash_cam.py"
+_CAMERA_SCRIPT_CONTENT = '''\
+import rclpy, sys, struct, cv2
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+
+class _DashCam(Node):
+    def __init__(self):
+        super().__init__("_dash_cam")
+        self.bridge = CvBridge()
+        self.create_subscription(Image, "/camera/gta_view", self.cb, 1)
+    def cb(self, msg):
+        try:
+            frame = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            ok, jpg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            if ok:
+                data = jpg.tobytes()
+                sys.stdout.buffer.write(struct.pack(">I", len(data)) + data)
+                sys.stdout.buffer.flush()
+        except Exception:
+            pass
+
+rclpy.init()
+node = _DashCam()
+rclpy.spin(node)
+'''
+
+def _camera_thread():
+    global _latest_frame
+    import struct
+    # Eski _dash_cam proseslerini temizle
+    subprocess.run("pkill -f '_dash_cam' 2>/dev/null; pkill -f 'dash_cam.py' 2>/dev/null",
+                   shell=True, capture_output=True)
+    time.sleep(1)
+    # Script'i dosyaya yaz (tırnak sorunu olmadan)
+    with open(_CAMERA_SCRIPT_PATH, "w") as f:
+        f.write(_CAMERA_SCRIPT_CONTENT)
+    cmd = ros_cmd(f"python3 {_CAMERA_SCRIPT_PATH}")
+    while True:
+        try:
+            proc = subprocess.Popen(
+                cmd, shell=True,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            )
+            while True:
+                hdr = proc.stdout.read(4)
+                if len(hdr) < 4:
+                    break
+                size = struct.unpack(">I", hdr)[0]
+                if size > 5_000_000:  # sanity check 5MB
+                    break
+                data = proc.stdout.read(size)
+                if len(data) < size:
+                    break
+                with _frame_lock:
+                    _latest_frame = data
+            proc.wait()
+        except Exception:
+            pass
+        time.sleep(3)
+
+
 def start_background_tasks():
     threading.Thread(target=_check_ros, daemon=True).start()
+    threading.Thread(target=_camera_thread, daemon=True).start()
     for topic in MONITORED_TOPICS:
         threading.Thread(target=_monitor_topic, args=(topic,), daemon=True).start()
 
@@ -364,6 +432,27 @@ async def _broadcast_loop():
 async def on_startup():
     start_background_tasks()
     asyncio.create_task(_broadcast_loop())
+
+
+# ─── Camera MJPEG Stream ───────────────────────────────────────────────────
+@app.get("/camera/stream")
+async def camera_stream():
+    async def generate():
+        while True:
+            with _frame_lock:
+                frame = _latest_frame
+            if frame:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + frame +
+                    b"\r\n"
+                )
+            await asyncio.sleep(1 / 25)  # 25 fps max
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 # ─── HTML Serve ────────────────────────────────────────────────────────────

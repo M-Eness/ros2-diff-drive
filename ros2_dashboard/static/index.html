@@ -29,7 +29,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* ─── LAYOUT ─────────────────────────────────────────────────── */
 #app { display: grid; height: 100vh;
   grid-template-rows: 52px 1fr;
-  grid-template-columns: 256px 1fr 300px;
+  grid-template-columns: 256px 1fr 360px;
   grid-template-areas:
     "hdr hdr hdr"
     "side main perc";
@@ -161,6 +161,18 @@ header {
 #perception {
   overflow-y: auto; background: var(--surf); border-left: 1px solid var(--border);
   display: flex; flex-direction: column; gap: 1px;
+  min-height: 0; max-height: calc(100vh - 52px);
+}
+#perception::-webkit-scrollbar { width: 8px; }
+#perception::-webkit-scrollbar-track { background: var(--surf2); }
+#perception::-webkit-scrollbar-thumb { background: var(--blue); border-radius: 4px; }
+#perception::-webkit-scrollbar-thumb:hover { background: var(--text); }
+/* Camera */
+#cam-feed { width:100%; height:220px; border-radius:6px; display:block; background:#000; object-fit:contain; }
+#cam-offline {
+  width:100%; height:220px; background:#0a0a0a; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:6px; color:var(--dim);
 }
 .perc-card { background: var(--surf2); margin: 8px 10px 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
 .perc-card:last-child { margin-bottom: 8px; }
@@ -314,21 +326,34 @@ header {
     <span id="lane-val">+0.000</span>
   </div>
 
-  <!-- Terminal -->
+  <!-- Terminal + Kamera -->
   <div id="terminal-wrap">
     <div class="term-tabs">
-      <div class="tab active" data-filter="">Tümü</div>
-      <div class="tab" data-filter="BT Karar">BT</div>
-      <div class="tab" data-filter="Ackermann Köprüsü">Ackermann</div>
-      <div class="tab" data-filter="Trafik Işığı">Işık</div>
-      <div class="tab" data-filter="Trafik İşareti">İşaret</div>
-      <div class="tab" data-filter="Şerit">Şerit</div>
-      <div class="tab" data-filter="PANEL">Panel</div>
+      <div class="tab" data-view="camera" onclick="switchView('camera')">📷 Kamera</div>
+      <div class="tab active" data-filter="" data-view="log" onclick="switchView('log')">Tümü</div>
+      <div class="tab" data-filter="BT Karar" data-view="log" onclick="switchView('log')">BT</div>
+      <div class="tab" data-filter="Ackermann Köprüsü" data-view="log" onclick="switchView('log')">Ackermann</div>
+      <div class="tab" data-filter="Trafik Işığı" data-view="log" onclick="switchView('log')">Işık</div>
+      <div class="tab" data-filter="Trafik İşareti" data-view="log" onclick="switchView('log')">İşaret</div>
+      <div class="tab" data-filter="Şerit" data-view="log" onclick="switchView('log')">Şerit</div>
+      <div class="tab" data-filter="PANEL" data-view="log" onclick="switchView('log')">Panel</div>
       <div class="term-actions">
         <button class="term-btn" id="btn-pause" onclick="togglePause()">⏸ Duraklat</button>
         <button class="term-btn" onclick="clearTerminal()">✕ Temizle</button>
       </div>
     </div>
+    <!-- Kamera görünümü -->
+    <div id="cam-view" style="display:none; flex:1; background:#000; position:relative;">
+      <img id="cam-feed-main" src="/camera/stream" alt="kamera"
+           style="width:100%; height:100%; object-fit:contain; display:block;"
+           onerror="document.getElementById('cam-no-signal').style.display='flex'; this.style.display='none'">
+      <div id="cam-no-signal" style="display:none; position:absolute; inset:0;
+           align-items:center; justify-content:center; flex-direction:column; gap:8px; color:var(--dim);">
+        <span style="font-size:32px;">📷</span>
+        <span>Kamera yok — /camera/gta_view</span>
+      </div>
+    </div>
+    <!-- Log görünümü -->
     <div id="terminal"></div>
   </div>
 
@@ -548,13 +573,28 @@ function renderLogs() {
   term.scrollTop = term.scrollHeight;
 }
 
+// ─── View Switching (Kamera / Log) ───────────────────────────────────────
+function switchView(view) {
+  const camView = el("cam-view");
+  const logView = el("terminal");
+  if (view === "camera") {
+    camView.style.display = "flex";
+    logView.style.display = "none";
+  } else {
+    camView.style.display = "none";
+    logView.style.display = "block";
+  }
+}
+
 // ─── Tab Switching ────────────────────────────────────────────────────────
 document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
-    activeFilter = tab.dataset.filter;
-    renderLogs();
+    if (!tab.dataset.view || tab.dataset.view === "log") {
+      activeFilter = tab.dataset.filter || "";
+      renderLogs();
+    }
   });
 });
 

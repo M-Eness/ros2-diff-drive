@@ -271,7 +271,7 @@
   </link>
 
   <joint name="camera_gta_joint" type="fixed">
-    <origin xyz="-0.8 0 0.8" rpy="0 0.5 0"/>
+    <origin xyz="0 0 8.0" rpy="0 1.5707 0"/>
     <parent link="base_link"/>
     <child link="camera_gta_link"/>
   </joint>
