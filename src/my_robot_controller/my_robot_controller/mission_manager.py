@@ -25,6 +25,7 @@ class MissionManager(Node):
             self.light_callback,
             10
         )
+        self.mission_cmd_pub = self.create_publisher(String, '/mission/command', 10)
         self.get_logger().info("Mission Manager Başlatıldı. Işık Durumu: GREEN")
 
     def light_callback(self, msg):
@@ -70,6 +71,13 @@ class MissionManager(Node):
             goal_pose.pose.position.y = float(coords[1])
             goal_pose.pose.orientation.w = 1.0 # Şimdilik sabit yön
             
+            # Park bölgesine yaklaşılıyorsa bt_decision_node'u uyar
+            if gorev_tipi == "PARK":
+                zone_msg = String()
+                zone_msg.data = "PARK_ZONE"
+                self.mission_cmd_pub.publish(zone_msg)
+                self.get_logger().info("Park bölgesine yöneliniyor — PARK_ZONE yayınlandı.")
+
             # Hareketi Başlat
             self.navigator.goToPose(goal_pose)
 
@@ -104,12 +112,18 @@ class MissionManager(Node):
             
             if result == TaskResult.SUCCEEDED:
                 self.get_logger().info("✅ Hedefe Varıldı.")
-                
+
                 # Senaryo Gereği Bekleme (Yolcu Alma vb.) [cite: 630]
                 if gorev_tipi == "DURAK":
                     wait_time = props.get('bekleme_suresi', 5)
                     self.get_logger().info(f"⏳ Yolcu Alınıyor... ({wait_time} sn)")
                     time.sleep(wait_time)
+
+                elif gorev_tipi == "PARK":
+                    self.get_logger().info("🅿️ Park girişine varıldı — bt_decision_node'a PARK komutu gönderiliyor.")
+                    cmd_msg = String()
+                    cmd_msg.data = "PARK"
+                    self.mission_cmd_pub.publish(cmd_msg)
                     
             elif result == TaskResult.CANCELED:
                 self.get_logger().warn("⚠️ Görev İptal Edildi!")

@@ -31,7 +31,7 @@
       "properties": {
         "name": "park_hazirlik",
         "description": "Park Alani Girisi",
-        "gorev_tipi": "PARK_GIRIS"
+        "gorev_tipi": "PARK"
       },
       "geometry": {
         "type": "Point",

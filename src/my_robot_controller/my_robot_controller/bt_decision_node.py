@@ -60,17 +60,19 @@ class BTDecisionNode(Node):
         # Park alt-durumu
         self.park_phase       = "IDLE"  # IDLE, ILERI, GERI_DONUS, DUZELME, TAMAM
         self.park_phase_until = 0.0
+        self.in_park_zone     = False   # mission_manager park bölgesine yönelince True olur
 
         # Nav2'nin cmd_vel'i (düşük öncelik — BT override etmediğinde relay edilir)
         self.nav2_cmd: Twist | None = None
 
         # Subscriptions
-        self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,       10)
-        self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green,     10)
-        self.create_subscription(String, '/traffic_sign_detections',               self.cb_sign,      10)
-        self.create_subscription(Float32,'/perception/lane_offset',                self.cb_lane,      10)
-        self.create_subscription(String, '/perception/lane_info',                  self.cb_lane_info, 10)
-        self.create_subscription(Twist,  '/cmd_vel_nav2',                          self.cb_nav2,      10)
+        self.create_subscription(Bool,   '/perception/flags/traffic_light_red',   self.cb_red,        10)
+        self.create_subscription(Bool,   '/perception/flags/traffic_light_green',  self.cb_green,      10)
+        self.create_subscription(String, '/traffic_sign_detections',               self.cb_sign,       10)
+        self.create_subscription(Float32,'/perception/lane_offset',                self.cb_lane,       10)
+        self.create_subscription(String, '/perception/lane_info',                  self.cb_lane_info,  10)
+        self.create_subscription(Twist,  '/cmd_vel_nav2',                          self.cb_nav2,       10)
+        self.create_subscription(String, '/mission/command',                       self.cb_mission_cmd, 10)
 
         # Publishers — /cmd_vel'e tek yazan bu node
         self.cmd_pub    = self.create_publisher(Twist,  '/cmd_vel',    10)
@@ -117,6 +119,17 @@ class BTDecisionNode(Node):
                     self.current_sign = best['class_name']
         except:
             pass
+
+    def cb_mission_cmd(self, msg):
+        if msg.data == "PARK_ZONE":
+            self.in_park_zone = True
+            self.get_logger().info("Park bölgesine girildi — levha tetikleyici aktif.")
+        elif msg.data == "PARK" and self.state != "PARK":
+            self.get_logger().info("Mission Manager'dan PARK komutu alındı — park moduna geçiliyor.")
+            self.in_park_zone = False
+            self.state = "PARK"
+            self.park_phase = "IDLE"
+            self._publish_status("PARK_BASLADI")
 
     # ── Yardımcı ───────────────────────────────────────────────────────────
     def _stop(self):
@@ -287,8 +300,9 @@ class BTDecisionNode(Node):
             self._publish_status("DURAK_YOLCU_ALINIYOR")
             return
 
-        if sign in PARK_SIGNS:
-            self.get_logger().info("PARK YERİ — park moduna geçiliyor.")
+        if sign in PARK_SIGNS and self.in_park_zone:
+            self.get_logger().info("PARK YERİ levhası görüldü (bölgedeyiz) — park moduna geçiliyor.")
+            self.in_park_zone = False
             self.state = "PARK"
             self.park_phase = "IDLE"
             self._set_cooldown()
