@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="tl_lamp_green">
+    <static>true</static>
+    <link name="link">
+      <visual name="glow">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry><cylinder><radius>0.115</radius><length>0.025</length></cylinder></geometry>
+        <material>
+          <ambient>0.05 1.0  0.1  1</ambient>
+          <diffuse>0.08 1.0  0.12 1</diffuse>
+          <emissive>0.0  1.0  0.05 1</emissive>
+          <specular>0.2  1.0  0.3  1</specular>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

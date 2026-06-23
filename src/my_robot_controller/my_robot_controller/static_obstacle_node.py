@@ -1,581 +1,324 @@
+#!/usr/bin/env python3
 """
-Teknofest Robotaksi - Statik Engel Algilama Node'u
-===================================================
-Velodyne VLP-16 nokta bulutu -> zemin cikarma -> kumeleme -> costmap
+Engel Algilama v2.0 - Robotaksi TEKNOFEST 2026
+===============================================
+2D LaserScan tabanlı, O(n) gap-detection algoritması.
+lane_controller_node ile /obstacle/state üzerinden entegre çalışır.
 
 Pipeline:
-  /velodyne_points (PointCloud2)
-      |
-      v
-  [Zemin Cikarma - RANSAC]
-      |
-      v
-  [Voxel Grid Filtreleme]
-      |
-      v
-  [Euclidean Cluster Extraction]
-      |
-      v
-  /obstacles/bounding_boxes  (visualization_msgs/MarkerArray)
-  /obstacles/centroids        (geometry_msgs/PoseArray)
-  /obstacles/laser_scan       (sensor_msgs/LaserScan)  <- nav2 costmap icin
+  /scan (LaserScan)
+    → Geçerli nokta filtresi
+    → XY dönüşümü
+    → Gap-detection ile O(n) kümeleme
+    → Ön koni engel mesafesi analizi
+    → Histerezis filtresi (kararlı STOP/SLOW/CLEAR)
+    → /obstacle/state   (JSON → lane_controller)
+    → /obstacle/markers (RViz silindir görselleştirme)
+    → /obstacle/centroids (PoseArray)
 """
 
+import math
+import json
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
-
-import numpy as np
-from sensor_msgs.msg import PointCloud2, LaserScan
-from geometry_msgs.msg import PoseArray, Pose
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray, Marker
-from std_msgs.msg import ColorRGBA
+from geometry_msgs.msg import PoseArray, Pose
 from builtin_interfaces.msg import Duration
 
-import sensor_msgs_py.point_cloud2 as pc2
 
-
-class StaticObstacleDetector(Node):
-    """
-    VLP-16 nokta bulutundan statik engelleri tespit eder.
-
-    Adimlar:
-      1. Ham bulutu al
-      2. ROI (ilgi bolgesini) filtrele - aracin yakin cevresini al
-      3. Zemin duslemi cikar (RANSAC benzeri yukseklik filtresi)
-      4. Voxel grid ile seyrekletir
-      5. Euclidean kumeleme ile nesneleri ayir
-      6. Her kume icin bounding box hesapla
-      7. LaserScan olarak yayinla (nav2 obstacle_layer icin)
-    """
+class ObstacleDetector(Node):
 
     def __init__(self):
         super().__init__('static_obstacle_detector')
 
-        # --- Parametreler ---
-        # input_type: "pointcloud" (gercek VLP-16) veya "laserscan" (sim 2D lidar)
-        self.declare_parameter('input_type', 'pointcloud')
-        self.declare_parameter('lidar_topic', '/velodyne_points')
-        self.declare_parameter('base_frame', 'base_link')
+        # ─── PARAMETRELER ─────────────────────────────────────────────
+        self.declare_parameter('lidar_topic',        '/scan')
+        self.declare_parameter('base_frame',         'base_link')
 
-        # ROI - aracin ne kadar onunu/yanini tara (metre)
-        self.declare_parameter('roi_x_min', -1.0)   # arkasi
-        self.declare_parameter('roi_x_max', 15.0)   # onunu
-        self.declare_parameter('roi_y_min', -5.0)   # solu
-        self.declare_parameter('roi_y_max', 5.0)    # sagi
-        self.declare_parameter('roi_z_min', -2.0)   # alti
-        self.declare_parameter('roi_z_max', 3.0)    # ustu
+        # Ön koni: robotun önü ±X derece
+        self.declare_parameter('front_angle_deg',    40.0)
+        # Dur eşiği (m) — bu mesafenin altında tam dur
+        self.declare_parameter('stop_distance',       1.2)
+        # Yavaşla eşiği (m) — bu mesafenin altında yavaş git
+        self.declare_parameter('slow_distance',       3.0)
+        # Temiz sayılmak için arka arkaya kaç frame gerekiyor
+        self.declare_parameter('clear_frames_needed',  6)
+        # Gap detection: iki bitişik nokta arası bu kadar sıçrama = farklı nesne
+        self.declare_parameter('gap_threshold',       0.4)
+        # Küme minimum genişliği (m) — gürültüyü at
+        self.declare_parameter('min_cluster_width',   0.05)
+        # Küme maximum genişliği (m) — duvarı engel sayma
+        self.declare_parameter('max_cluster_width',   4.0)
+        # Kendi gövdesi nedeniyle çok yakın ölçümleri at
+        self.declare_parameter('min_range',           0.25)
+        # Lidar maks mesafe (dinamik: msg.range_max den alınır ama fallback)
+        self.declare_parameter('max_range',          20.0)
 
-        # Zemin cikarma: bu yuksekligin altindaki noktalar zemin sayilir
-        self.declare_parameter('ground_z_threshold', -0.3)
-        # Engel yuksekligi: bu yuksekligin uzerindekiler engel sayilir
-        self.declare_parameter('obstacle_z_min', -0.2)
-        self.declare_parameter('obstacle_z_max', 2.5)
-
-        # Voxel grid boyutu (metre) - daha buyuk = daha az nokta, daha hizli
-        self.declare_parameter('voxel_size', 0.1)
-
-        # Euclidean kumeleme
-        self.declare_parameter('cluster_tolerance', 0.4)  # metre
-        self.declare_parameter('min_cluster_size', 5)
-        self.declare_parameter('max_cluster_size', 5000)
-
-        # Minimum engel boyutu (gida vs. gercek engel ayirimi)
-        self.declare_parameter('min_obstacle_width', 0.1)   # metre
-        self.declare_parameter('max_obstacle_width', 8.0)   # metre
-
-        # LaserScan parametreleri (nav2 icin)
-        self.declare_parameter('laser_scan_height_min', -0.1)
-        self.declare_parameter('laser_scan_height_max', 1.5)
-        self.declare_parameter('laser_angle_min', -3.14159)
-        self.declare_parameter('laser_angle_max', 3.14159)
-        self.declare_parameter('laser_angle_increment', 0.00872)  # 0.5 derece
-        self.declare_parameter('laser_range_min', 0.3)
-        self.declare_parameter('laser_range_max', 20.0)
-
-        self._load_params()
-
-        # QoS - sensor verisi icin BEST_EFFORT yeterli
+        # ─── QoS ──────────────────────────────────────────────────────
         sensor_qos = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1
         )
 
-        # Subscriber — input_type'a gore LaserScan veya PointCloud2
-        if self.input_type == 'laserscan':
-            self.lidar_sub = self.create_subscription(
-                LaserScan,
-                self.lidar_topic,
-                self.laserscan_callback,
-                sensor_qos
-            )
-            self.get_logger().info('Mod: LaserScan (simülasyon)')
-        else:
-            self.lidar_sub = self.create_subscription(
-                PointCloud2,
-                self.lidar_topic,
-                self.lidar_callback,
-                sensor_qos
-            )
-            self.get_logger().info('Mod: PointCloud2 (gerçek donanım)')
+        # ─── SUBSCRIBER ───────────────────────────────────────────────
+        self.sub = self.create_subscription(
+            LaserScan,
+            self._p('lidar_topic'),
+            self._callback,
+            sensor_qos
+        )
 
-        # Publisher'lar
-        self.marker_pub = self.create_publisher(
-            MarkerArray, '/obstacles/bounding_boxes', 10)
-        self.pose_pub = self.create_publisher(
-            PoseArray, '/obstacles/centroids', 10)
-        self.scan_pub = self.create_publisher(
-            LaserScan, '/obstacles/laser_scan', 10)
+        # ─── PUBLISHER'LAR ────────────────────────────────────────────
+        self.pub_state    = self.create_publisher(String,      '/obstacle/state',    10)
+        self.pub_markers  = self.create_publisher(MarkerArray, '/obstacle/markers',  10)
+        self.pub_centroids = self.create_publisher(PoseArray,  '/obstacle/centroids', 10)
+
+        # ─── HİSTEREZİS DURUMU ────────────────────────────────────────
+        self.active_zone       = 'CLEAR'
+        self.clear_frame_count = 0
 
         self.frame_count = 0
         self.get_logger().info(
-            f'StaticObstacleDetector baslatildi. '
-            f'LiDAR topic: {self.lidar_topic}'
+            f'ObstacleDetector v2.0 başlatıldı | '
+            f'dur={self._p("stop_distance")}m  yavaş={self._p("slow_distance")}m  '
+            f'koni=±{self._p("front_angle_deg")}°'
         )
 
-    def _load_params(self):
-        """Parametreleri yukle."""
-        self.input_type = self.get_parameter('input_type').value
-        self.lidar_topic = self.get_parameter('lidar_topic').value
-        self.base_frame = self.get_parameter('base_frame').value
+    # ─── YARDIMCI ─────────────────────────────────────────────────────
 
-        self.roi_x_min = self.get_parameter('roi_x_min').value
-        self.roi_x_max = self.get_parameter('roi_x_max').value
-        self.roi_y_min = self.get_parameter('roi_y_min').value
-        self.roi_y_max = self.get_parameter('roi_y_max').value
-        self.roi_z_min = self.get_parameter('roi_z_min').value
-        self.roi_z_max = self.get_parameter('roi_z_max').value
+    def _p(self, name):
+        return self.get_parameter(name).value
 
-        self.ground_z_thresh = self.get_parameter('ground_z_threshold').value
-        self.obs_z_min = self.get_parameter('obstacle_z_min').value
-        self.obs_z_max = self.get_parameter('obstacle_z_max').value
+    # ─── ANA CALLBACK ─────────────────────────────────────────────────
 
-        self.voxel_size = self.get_parameter('voxel_size').value
-
-        self.cluster_tol = self.get_parameter('cluster_tolerance').value
-        self.min_cluster = self.get_parameter('min_cluster_size').value
-        self.max_cluster = self.get_parameter('max_cluster_size').value
-
-        self.min_obs_width = self.get_parameter('min_obstacle_width').value
-        self.max_obs_width = self.get_parameter('max_obstacle_width').value
-
-        self.scan_h_min = self.get_parameter('laser_scan_height_min').value
-        self.scan_h_max = self.get_parameter('laser_scan_height_max').value
-        self.scan_angle_min = self.get_parameter('laser_angle_min').value
-        self.scan_angle_max = self.get_parameter('laser_angle_max').value
-        self.scan_angle_inc = self.get_parameter('laser_angle_increment').value
-        self.scan_range_min = self.get_parameter('laser_range_min').value
-        self.scan_range_max = self.get_parameter('laser_range_max').value
-
-    # ------------------------------------------------------------------
-    # LaserScan callback (simülasyon modu)
-    # ------------------------------------------------------------------
-
-    def laserscan_callback(self, msg: LaserScan):
-        """2D LaserScan'i numpy array'e cevirip pipeline'a sok."""
+    def _callback(self, msg: LaserScan):
         self.frame_count += 1
 
-        angles = np.arange(
-            msg.angle_min,
-            msg.angle_min + len(msg.ranges) * msg.angle_increment,
-            msg.angle_increment,
-            dtype=np.float32
-        )[:len(msg.ranges)]
+        # 1. Açı ve mesafe dizileri oluştur
+        n = len(msg.ranges)
+        if n == 0:
+            self._publish_state('CLEAR', 99.0, 0.0, [])
+            return
 
+        angles = (msg.angle_min
+                  + np.arange(n, dtype=np.float32) * msg.angle_increment)
         ranges = np.array(msg.ranges, dtype=np.float32)
-        valid = np.isfinite(ranges) & (ranges >= msg.range_min) & (ranges <= msg.range_max)
+
+        # 2. Geçersiz ölçümleri at
+        min_r = max(self._p('min_range'), msg.range_min)
+        max_r = min(self._p('max_range'), msg.range_max * 0.99)
+        valid = np.isfinite(ranges) & (ranges >= min_r) & (ranges <= max_r)
         angles = angles[valid]
         ranges = ranges[valid]
 
+        if len(ranges) == 0:
+            self._publish_state('CLEAR', 99.0, 0.0, [])
+            return
+
+        # 3. Polar → Kartezyen
         x = ranges * np.cos(angles)
         y = ranges * np.sin(angles)
-        z = np.zeros_like(x)
-        points = np.column_stack([x, y, z])
 
-        if len(points) < 5:
-            self._publish_empty_scan(msg.header)
-            return
+        # 4. Gap-detection kümeleme (O(n))
+        clusters = self._gap_detect(angles, ranges, x, y)
 
-        # ROI (z ekseni anlamli degil, xy filtresi yeterli)
-        points = self._roi_filter(points)
-        if len(points) < 5:
-            self._publish_empty_scan(msg.header)
-            return
+        # 5. Ön koni minimum mesafe analizi
+        front_rad  = math.radians(self._p('front_angle_deg'))
+        front_mask = np.abs(angles) <= front_rad
 
-        # 2D modda zemin cikarma atlanir (tum noktalar z=0)
-        points = self._voxel_downsample(points)
-        clusters = self._euclidean_clustering(points)
+        if np.any(front_mask):
+            front_ranges = ranges[front_mask]
+            front_angles = angles[front_mask]
+            best          = int(np.argmin(front_ranges))
+            min_dist      = float(front_ranges[best])
+            closest_angle = float(front_angles[best])
+        else:
+            min_dist      = 99.0
+            closest_angle = 0.0
 
-        if clusters:
-            self._publish_markers(clusters, msg.header)
-            self._publish_poses(clusters, msg.header)
+        # 6. Histerezis ile zone belirle
+        zone = self._classify_zone(min_dist)
 
-        self._publish_laser_scan(points, msg.header)
+        # 7. Yayınla
+        self._publish_state(zone, min_dist, closest_angle, clusters)
+        self._publish_markers(clusters, msg.header)
+        self._publish_centroids(clusters, msg.header)
 
-    # ------------------------------------------------------------------
-    # Ana callback (PointCloud2 / gercek donanim modu)
-    # ------------------------------------------------------------------
-
-    def lidar_callback(self, msg: PointCloud2):
-        """Her LiDAR frame'i icin engel algilama pipeline'ini calistir."""
-        self.frame_count += 1
-
-        # 1. Nokta bulutunu numpy array'e cevir
-        points = self._pointcloud2_to_numpy(msg)
-        if points is None or len(points) == 0:
-            return
-
-        # 2. ROI filtresi
-        points = self._roi_filter(points)
-        if len(points) < 10:
-            return
-
-        # 3. Zemin cikar
-        obstacle_points = self._remove_ground(points)
-        if len(obstacle_points) < 5:
-            self._publish_empty_scan(msg.header)
-            return
-
-        # 4. Voxel grid seyrekletme
-        obstacle_points = self._voxel_downsample(obstacle_points)
-
-        # 5. Euclidean kumeleme
-        clusters = self._euclidean_clustering(obstacle_points)
-
-        # 6. Geri bildirim yayinla
-        if clusters:
-            self._publish_markers(clusters, msg.header)
-            self._publish_poses(clusters, msg.header)
-
-        # 7. LaserScan yayinla (nav2 icin - her frame)
-        self._publish_laser_scan(obstacle_points, msg.header)
-
-        # Her 100 frame'de bir istatistik yazdir
-        if self.frame_count % 100 == 0:
+        if self.frame_count % 20 == 0:
             self.get_logger().info(
-                f'Frame {self.frame_count}: '
-                f'{len(obstacle_points)} nokta, '
-                f'{len(clusters)} engel'
+                f'[Engel] Zone={zone} | '
+                f'Ön min={min_dist:.2f}m açı={math.degrees(closest_angle):.1f}° | '
+                f'{len(clusters)} küme'
             )
 
-    # ------------------------------------------------------------------
-    # Adim 1: PointCloud2 -> numpy
-    # ------------------------------------------------------------------
+    # ─── GAP-DETECTION KÜMELEMESİ ─────────────────────────────────────
 
-    def _pointcloud2_to_numpy(self, msg: PointCloud2):
-        """PointCloud2 mesajini (N, 3) numpy array'e cevir."""
-        try:
-            points_list = []
-            for p in pc2.read_points(msg, field_names=('x', 'y', 'z'),
-                                     skip_nans=True):
-                points_list.append([p[0], p[1], p[2]])
-
-            if not points_list:
-                return None
-            return np.array(points_list, dtype=np.float32)
-        except Exception as e:
-            self.get_logger().warn(f'Nokta bulutu okuma hatasi: {e}')
-            return None
-
-    # ------------------------------------------------------------------
-    # Adim 2: ROI Filtresi
-    # ------------------------------------------------------------------
-
-    def _roi_filter(self, points: np.ndarray) -> np.ndarray:
+    def _gap_detect(self, angles, ranges, x, y):
         """
-        Aracin ilgi bolgesini (ROI) filtrele.
-        Aracin cok uzagindaki veya arka taraftaki noktalari at.
+        Açısal sıralı LiDAR noktalarında ardışık noktalar arası
+        büyük boşluklara (gap) bakarak kümeleme yapar.
+        Karmaşıklık: O(n) — BFS'e göre çok daha hızlı.
         """
-        mask = (
-            (points[:, 0] > self.roi_x_min) &
-            (points[:, 0] < self.roi_x_max) &
-            (points[:, 1] > self.roi_y_min) &
-            (points[:, 1] < self.roi_y_max) &
-            (points[:, 2] > self.roi_z_min) &
-            (points[:, 2] < self.roi_z_max)
-        )
-        return points[mask]
-
-    # ------------------------------------------------------------------
-    # Adim 3: Zemin Cikarma
-    # ------------------------------------------------------------------
-
-    def _remove_ground(self, points: np.ndarray) -> np.ndarray:
-        """
-        Zemin noktalarini cikar.
-
-        Yaklasim: Yukseklik esigine dayali basit filtre.
-        VLP-16 arac uzerinde ~620mm yukseklikte, zemin sensore gore
-        yaklasik -0.6m civarinda. ground_z_threshold bu mesafeyi ayarlar.
-
-        Daha gelismis: pcl RANSAC plane segmentation (C++ node) kullanilabilir.
-        """
-        # Once sadece zemin yuksekligindeki noktalari bul
-        ground_mask = points[:, 2] < self.ground_z_thresh
-        non_ground = points[~ground_mask]
-
-        # Engel yukseklik araligini da filtrele
-        obstacle_mask = (
-            (non_ground[:, 2] > self.obs_z_min) &
-            (non_ground[:, 2] < self.obs_z_max)
-        )
-        return non_ground[obstacle_mask]
-
-    # ------------------------------------------------------------------
-    # Adim 4: Voxel Grid Seyrekletme
-    # ------------------------------------------------------------------
-
-    def _voxel_downsample(self, points: np.ndarray) -> np.ndarray:
-        """
-        Voxel grid ile nokta bulutunu seyreklet.
-        Her voxel icindeki noktalarin merkezini al.
-        """
-        if len(points) == 0:
-            return points
-
-        voxel_size = self.voxel_size
-        # Voxel indekslerini hesapla
-        voxel_indices = np.floor(points / voxel_size).astype(np.int32)
-
-        # Her benzersiz voxel icin merkezi hesapla
-        unique_voxels, inverse = np.unique(
-            voxel_indices, axis=0, return_inverse=True)
-
-        downsampled = np.zeros((len(unique_voxels), 3), dtype=np.float32)
-        counts = np.zeros(len(unique_voxels), dtype=np.int32)
-
-        for i, idx in enumerate(inverse):
-            downsampled[idx] += points[i]
-            counts[idx] += 1
-
-        counts = counts.reshape(-1, 1)
-        downsampled = downsampled / counts
-
-        return downsampled
-
-    # ------------------------------------------------------------------
-    # Adim 5: Euclidean Kumeleme
-    # ------------------------------------------------------------------
-
-    def _euclidean_clustering(self, points: np.ndarray) -> list:
-        """
-        Basit Euclidean kumeleme (KD-tree olmadan, numpy ile).
-
-        Buyuk sahnelerde pcl C++ kullanmak daha hizlidir.
-        Bu implementasyon yarisma parkuru boyutlari icin yeterlidir.
-
-        Returns:
-            clusters: Her eleman bir (N, 3) numpy array (bir engel)
-        """
-        if len(points) == 0:
+        if len(ranges) < 2:
             return []
 
-        tol_sq = self.cluster_tol ** 2
-        n = len(points)
-        visited = np.zeros(n, dtype=bool)
+        # Açıya göre sırala (LiDAR zaten sıralı gelir ama garantile)
+        order    = np.argsort(angles)
+        sx, sy   = x[order], y[order]
+        sr       = ranges[order]
+
+        # Ardışık nokta kartezyen mesafeleri
+        dx = np.diff(sx)
+        dy = np.diff(sy)
+        pt_dist = np.sqrt(dx * dx + dy * dy)
+
+        # Büyük sıçrama = yeni küme başlangıcı
+        gap_thr  = self._p('gap_threshold')
+        gap_idxs = np.where(pt_dist > gap_thr)[0] + 1
+        splits   = np.concatenate([[0], gap_idxs, [len(sr)]])
+
+        min_w = self._p('min_cluster_width')
+        max_w = self._p('max_cluster_width')
         clusters = []
 
-        for i in range(n):
-            if visited[i]:
+        for i in range(len(splits) - 1):
+            s, e = splits[i], splits[i + 1]
+            if e - s < 2:
                 continue
 
-            # BFS ile kumeyi genislet
-            cluster_indices = [i]
-            queue = [i]
-            visited[i] = True
+            cx, cy, cr = sx[s:e], sy[s:e], sr[s:e]
 
-            while queue:
-                curr = queue.pop(0)
-                # Tum noktalara mesafe hesapla (vektorize)
-                diffs = points - points[curr]
-                dist_sq = np.sum(diffs ** 2, axis=1)
-                neighbors = np.where(
-                    (dist_sq < tol_sq) & (~visited)
-                )[0]
+            # Küme genişliği (bounding box diyagonali)
+            width = math.hypot(
+                float(cx.max() - cx.min()),
+                float(cy.max() - cy.min())
+            )
+            if width < min_w or width > max_w:
+                continue
 
-                for nb in neighbors:
-                    visited[nb] = True
-                    cluster_indices.append(nb)
-                    queue.append(nb)
+            # Range-ağırlıklı centroid (yakın noktalar daha güvenilir)
+            w       = 1.0 / (cr + 0.01)
+            ctrd_x  = float(np.average(cx, weights=w))
+            ctrd_y  = float(np.average(cy, weights=w))
+            min_rng = float(cr.min())
+            angle_c = math.atan2(ctrd_y, ctrd_x)
 
-            # Boyut kontrolu
-            size = len(cluster_indices)
-            if self.min_cluster <= size <= self.max_cluster:
-                cluster_pts = points[cluster_indices]
-                # Genislik kontrolu
-                width_x = np.max(cluster_pts[:, 0]) - np.min(cluster_pts[:, 0])
-                width_y = np.max(cluster_pts[:, 1]) - np.min(cluster_pts[:, 1])
-                max_width = max(width_x, width_y)
-                if self.min_obs_width <= max_width <= self.max_obs_width:
-                    clusters.append(cluster_pts)
+            clusters.append({
+                'x':     ctrd_x,
+                'y':     ctrd_y,
+                'dist':  min_rng,
+                'width': width,
+                'angle': angle_c,
+                'pts':   np.column_stack([cx, cy]),
+            })
 
         return clusters
 
-    # ------------------------------------------------------------------
-    # Adim 6a: Marker yayini (RViz goruntuleme)
-    # ------------------------------------------------------------------
+    # ─── HİSTEREZİS ───────────────────────────────────────────────────
 
-    def _publish_markers(self, clusters: list, header):
-        """Her kume icin bounding box marker yayinla (RViz icin)."""
-        marker_array = MarkerArray()
-
-        # Once onceki marker'lari temizle
-        delete_marker = Marker()
-        delete_marker.header = header
-        delete_marker.ns = 'obstacles'
-        delete_marker.action = Marker.DELETEALL
-        marker_array.markers.append(delete_marker)
-
-        for i, cluster in enumerate(clusters):
-            min_pt = np.min(cluster, axis=0)
-            max_pt = np.max(cluster, axis=0)
-            center = (min_pt + max_pt) / 2.0
-            size = max_pt - min_pt
-
-            marker = Marker()
-            marker.header = header
-            marker.ns = 'obstacles'
-            marker.id = i
-            marker.type = Marker.CUBE
-            marker.action = Marker.ADD
-
-            marker.pose.position.x = float(center[0])
-            marker.pose.position.y = float(center[1])
-            marker.pose.position.z = float(center[2])
-            marker.pose.orientation.w = 1.0
-
-            # Minimum gorunur boyut
-            marker.scale.x = max(float(size[0]), 0.1)
-            marker.scale.y = max(float(size[1]), 0.1)
-            marker.scale.z = max(float(size[2]), 0.1)
-
-            # Renk: kirmizi (engel)
-            marker.color.r = 1.0
-            marker.color.g = 0.2
-            marker.color.b = 0.0
-            marker.color.a = 0.7
-
-            marker.lifetime = Duration(sec=0, nanosec=200_000_000)  # 0.2s
-            marker_array.markers.append(marker)
-
-        self.marker_pub.publish(marker_array)
-
-    # ------------------------------------------------------------------
-    # Adim 6b: Pose yayini
-    # ------------------------------------------------------------------
-
-    def _publish_poses(self, clusters: list, header):
-        """Her engelin merkezini PoseArray olarak yayinla."""
-        pose_array = PoseArray()
-        pose_array.header = header
-
-        for cluster in clusters:
-            centroid = np.mean(cluster, axis=0)
-            pose = Pose()
-            pose.position.x = float(centroid[0])
-            pose.position.y = float(centroid[1])
-            pose.position.z = float(centroid[2])
-            pose.orientation.w = 1.0
-            pose_array.poses.append(pose)
-
-        self.pose_pub.publish(pose_array)
-
-    # ------------------------------------------------------------------
-    # Adim 7: LaserScan yayini (nav2 obstacle_layer icin)
-    # ------------------------------------------------------------------
-
-    def _publish_laser_scan(self, obstacle_points: np.ndarray, header):
+    def _classify_zone(self, min_dist: float) -> str:
         """
-        3D nokta bulutunu 2D LaserScan'e donustur.
-        nav2'nin obstacle_layer'i bu formati dogrudan tuketerek
-        costmap'i guncelleyebilir.
-
-        Belirli yukseklik araligindaki (scan_h_min - scan_h_max) noktalar
-        kullanilir.
+        Kararlı zone geçişleri:
+          • STOP / SLOW → anında geçiş (tehlike öncelikli)
+          • → CLEAR → N ardışık temiz frame gerekir (yalancı clear'ı engelle)
         """
-        scan = LaserScan()
-        scan.header = header
-        scan.header.frame_id = self.base_frame
+        stop_d        = self._p('stop_distance')
+        slow_d        = self._p('slow_distance')
+        clear_needed  = self._p('clear_frames_needed')
 
-        num_bins = int(
-            (self.scan_angle_max - self.scan_angle_min) / self.scan_angle_inc
-        )
+        if min_dist <= stop_d:
+            self.clear_frame_count = 0
+            self.active_zone = 'STOP'
+        elif min_dist <= slow_d:
+            self.clear_frame_count = 0
+            self.active_zone = 'SLOW'
+        else:
+            self.clear_frame_count += 1
+            if self.clear_frame_count >= clear_needed:
+                self.active_zone = 'CLEAR'
 
-        scan.angle_min = self.scan_angle_min
-        scan.angle_max = self.scan_angle_max
-        scan.angle_increment = self.scan_angle_inc
-        scan.range_min = self.scan_range_min
-        scan.range_max = self.scan_range_max
-        scan.time_increment = 0.0
-        scan.scan_time = 0.1
+        return self.active_zone
 
-        ranges = np.full(num_bins, self.scan_range_max + 1.0)
+    # ─── YAYINLAR ─────────────────────────────────────────────────────
 
-        if len(obstacle_points) > 0:
-            # Yalnizca belirlenen yukseklik araligindaki noktalar
-            height_mask = (
-                (obstacle_points[:, 2] >= self.scan_h_min) &
-                (obstacle_points[:, 2] <= self.scan_h_max)
-            )
-            scan_pts = obstacle_points[height_mask]
+    def _publish_state(self, zone: str, distance: float,
+                       angle_rad: float, clusters: list):
+        payload = {
+            'zone':           zone,
+            'distance':       round(distance, 3),
+            'angle_deg':      round(math.degrees(angle_rad), 1),
+            'obstacle_count': len(clusters),
+        }
+        self.pub_state.publish(String(data=json.dumps(payload)))
 
-            if len(scan_pts) > 0:
-                # Her nokta icin aci ve mesafe hesapla
-                angles = np.arctan2(scan_pts[:, 1], scan_pts[:, 0])
-                distances = np.sqrt(
-                    scan_pts[:, 0] ** 2 + scan_pts[:, 1] ** 2
-                )
+    def _publish_markers(self, clusters, header):
+        ma = MarkerArray()
 
-                # Gecerli mesafe araligindaki noktalar
-                valid = (
-                    (distances >= self.scan_range_min) &
-                    (distances <= self.scan_range_max)
-                )
-                angles = angles[valid]
-                distances = distances[valid]
+        # Önceki marker'ları sil
+        del_m        = Marker()
+        del_m.header = header
+        del_m.ns     = 'obstacles'
+        del_m.action = Marker.DELETEALL
+        ma.markers.append(del_m)
 
-                # Aci indekslerine donustur ve en yakin mesafeyi al
-                indices = ((angles - self.scan_angle_min) /
-                           self.scan_angle_inc).astype(int)
-                valid_idx = (indices >= 0) & (indices < num_bins)
-                indices = indices[valid_idx]
-                distances = distances[valid_idx]
+        slow_d = self._p('slow_distance')
+        stop_d = self._p('stop_distance')
 
-                for idx, dist in zip(indices, distances):
-                    if dist < ranges[idx]:
-                        ranges[idx] = dist
+        for i, cl in enumerate(clusters):
+            m               = Marker()
+            m.header        = header
+            m.ns            = 'obstacles'
+            m.id            = i
+            m.type          = Marker.CYLINDER
+            m.action        = Marker.ADD
+            m.pose.position.x = cl['x']
+            m.pose.position.y = cl['y']
+            m.pose.position.z = 0.5
+            m.pose.orientation.w = 1.0
 
-        scan.ranges = ranges.tolist()
-        self.scan_pub.publish(scan)
+            r        = max(cl['width'] / 2.0, 0.08)
+            m.scale.x = r * 2
+            m.scale.y = r * 2
+            m.scale.z = 1.0
 
-    def _publish_empty_scan(self, header):
-        """Hic engel yoksa bos scan yayinla."""
-        scan = LaserScan()
-        scan.header = header
-        scan.header.frame_id = self.base_frame
-        num_bins = int(
-            (self.scan_angle_max - self.scan_angle_min) / self.scan_angle_inc
-        )
-        scan.angle_min = self.scan_angle_min
-        scan.angle_max = self.scan_angle_max
-        scan.angle_increment = self.scan_angle_inc
-        scan.range_min = self.scan_range_min
-        scan.range_max = self.scan_range_max
-        scan.ranges = [self.scan_range_max + 1.0] * num_bins
-        self.scan_pub.publish(scan)
+            # Turuncu sabit renk
+            m.color.r, m.color.g, m.color.b = 1.0, 0.50, 0.0
+
+            m.color.a   = 0.80
+            m.lifetime  = Duration(sec=0, nanosec=300_000_000)
+            ma.markers.append(m)
+
+        self.pub_markers.publish(ma)
+
+    def _publish_centroids(self, clusters, header):
+        pa        = PoseArray()
+        pa.header = header
+        for cl in clusters:
+            p               = Pose()
+            p.position.x    = cl['x']
+            p.position.y    = cl['y']
+            p.position.z    = 0.0
+            p.orientation.w = 1.0
+            pa.poses.append(p)
+        self.pub_centroids.publish(pa)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = StaticObstacleDetector()
+    node = ObstacleDetector()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

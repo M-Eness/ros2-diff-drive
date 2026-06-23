@@ -9,7 +9,7 @@
       <collision name="collision">
         <geometry>
           <mesh>
-            <uri>model://robotaksi_map/meshes/RobotaksiMap.stl</uri>
+            <uri>model://robotaksi_map/meshes/RobotaksiMap.obj</uri>
           </mesh>
         </geometry>
       </collision>

@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [28.9791121, 41.0149803]
+      },
+      "properties": {
+        "gorev_tipi": "DURAK",
+        "description": "Yolcu Durak 1 (Gazebo = -35.10, -17.45)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [28.9800253, 41.0148057]
+      },
+      "properties": {
+        "gorev_tipi": "DURAK",
+        "description": "Yolcu Durak 2 (Gazebo = 41.60, -36.88)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [28.9797492, 41.0153682]
+      },
+      "properties": {
+        "gorev_tipi": "DURAK",
+        "description": "Yolcu Durak 3 (Gazebo = 18.41, 25.74)"
+      }
+    }
+  ]
+}

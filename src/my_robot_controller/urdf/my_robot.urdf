@@ -10,7 +10,7 @@
 
   <link name="base_link">
     <inertial>
-      <origin xyz="0 0 0.2" rpy="0 0 0" />
+      <origin xyz="0 0 0.02" rpy="0 0 0" />
       <mass value="500.0"/>
       <inertia ixx="60.0" ixy="0" ixz="0" iyy="120.0" iyz="0" izz="150.0" />
     </inertial>
@@ -96,6 +96,7 @@
     <child link="front_right_steering_link" />
     <axis xyz="0 0 1" />
     <limit lower="-0.6" upper="0.6" effort="100" velocity="10"/>
+    <dynamics damping="5.0" friction="0.0"/>
   </joint>
 
   <!-- FRONT RIGHT WHEEL -->
@@ -137,6 +138,7 @@
     <child link="front_left_steering_link" />
     <axis xyz="0 0 1" />
     <limit lower="-0.6" upper="0.6" effort="100" velocity="10"/>
+    <dynamics damping="5.0" friction="0.0"/>
   </joint>
 
   <!-- FRONT LEFT WHEEL -->
@@ -287,12 +289,12 @@
   <gazebo reference="camera_gta_link">
     <sensor name="gta_camera" type="camera">
       <pose>0 0 0 0 0 0</pose>
-      <update_rate>30</update_rate>
+      <update_rate>3</update_rate>
       <camera>
         <horizontal_fov>1.2</horizontal_fov>
         <image>
-          <width>800</width>
-          <height>600</height>
+          <width>480</width>
+          <height>360</height>
           <format>R8G8B8</format>
         </image>
         <clip><near>0.1</near><far>200.0</far></clip>
@@ -329,7 +331,7 @@
   <gazebo reference="camera_link">
     <sensor name="camera_sensor" type="camera">
       <pose>0 0 0 0 0 0</pose>
-      <update_rate>30</update_rate>
+      <update_rate>20</update_rate>
       <camera>
         <horizontal_fov>1.5707</horizontal_fov>
         <image>

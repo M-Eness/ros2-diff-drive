@@ -6,23 +6,23 @@
   direction: GZ_TO_ROS
 
 - ros_topic_name: "/cmd_vel"
-  gz_topic_name: "/cmd_vel"
+  gz_topic_name: "/model/my_robot/cmd_vel"
   ros_type_name: "geometry_msgs/msg/Twist"
   gz_type_name: "ignition.msgs.Twist"
   direction: ROS_TO_GZ
 
 - ros_topic_name: "/joint_states"
-  gz_topic_name: "/world/robotaxi_track_complex/model/my_robot/joint_state"
+  gz_topic_name: "/joint_states"
   ros_type_name: "sensor_msgs/msg/JointState"
   gz_type_name: "ignition.msgs.Model"
   direction: GZ_TO_ROS
 
-# Odometry
-- ros_topic_name: "/odom"
-  gz_topic_name: "/odom"
-  ros_type_name: "nav_msgs/msg/Odometry"
-  gz_type_name: "ignition.msgs.Odometry"
-  direction: GZ_TO_ROS
+# Odometry (VelocityControl plugin odom yayınlamaz — devre dışı)
+# - ros_topic_name: "/odom"
+#   gz_topic_name: "/odom"
+#   ros_type_name: "nav_msgs/msg/Odometry"
+#   gz_type_name: "ignition.msgs.Odometry"
+#   direction: GZ_TO_ROS
 
 - ros_topic_name: "/imu/data"
   gz_topic_name: "/imu/data"
@@ -53,3 +53,12 @@
   ros_type_name: "sensor_msgs/msg/CameraInfo"
   gz_type_name: "ignition.msgs.CameraInfo"
   direction: GZ_TO_ROS
+
+- ros_topic_name: "/gz/world_poses"
+  gz_topic_name: "/world/robotaksi_world/dynamic_pose/info"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "ignition.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+
+

@@ -1,0 +1,10 @@
+# stop_light.mtl — texture removed (stop_light.png missing)
+newmtl StopLight
+	Ns 25.0
+	Ni 1.5
+	d 1.0
+	illum 2
+	Ka 0.35 0.35 0.35
+	Kd 0.45 0.45 0.45
+	Ks 0.10 0.10 0.10
+	Ke 0.0  0.0  0.0

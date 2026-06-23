@@ -36,18 +36,12 @@ ekf_filter_node:
     # 2D robot - sadece x, y, yaw
     two_d_mode: true
 
-    # Odometry kaynağı
-    odom0: /odom
-    odom0_config: [
-      false,  false,  false,   # x, y, z (pozisyon)
-      false, false, false,    # roll, pitch, yaw (oryantasyon)
-      true,  false,  false,   # vx, vy, vz (lineer hız)
-      false, false, false,    # vroll, vpitch, vyaw (açısal hız)
-      false, false, false    # ax, ay, az (ivme)
-    ]
-    odom0_queue_size: 10
-    odom0_differential: false
-    odom0_relative: false
+    # Odometry: VelocityControl plugin odom yayınlamadığı için devre dışı
+    # odom0: /odom
+    # odom0_config: [false, false, false, false, false, false, true, false, false, false, false, false, false, false, false]
+    # odom0_queue_size: 10
+    # odom0_differential: false
+    # odom0_relative: false
 
     # Process noise - düşük değerler = odometry'ye güven
     process_noise_covariance: [

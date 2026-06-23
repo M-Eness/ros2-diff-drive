@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="stop_light">
+    <static>true</static>
+
+    <!-- scale=0.05 → mesh yüksekliği ~3.8m; pose z=3.9 → taban yerde -->
+    <pose>0 0 3.9 0 0 0</pose>
+
+    <link name="link">
+
+      <collision name="collision">
+        <geometry>
+          <mesh>
+            <uri>model://stop_light/meshes/stop_light.obj</uri>
+            <scale>0.05 0.05 0.05</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+      <visual name="frame">
+        <geometry>
+          <mesh>
+            <uri>model://stop_light/meshes/stop_light.obj</uri>
+            <scale>0.05 0.05 0.05</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Dark (off) lens spheres — pole top'ına kümeli, tl_lamp glowing sphere'larla hizalı -->
+      <visual name="red_off">
+        <pose>0 0 -0.40 0 0 0</pose>
+        <geometry><sphere><radius>0.22</radius></sphere></geometry>
+        <material><ambient>0.15 0.0 0.0 1</ambient><diffuse>0.10 0.0 0.0 1</diffuse></material>
+      </visual>
+      <visual name="yellow_off">
+        <pose>0 0 -0.75 0 0 0</pose>
+        <geometry><sphere><radius>0.22</radius></sphere></geometry>
+        <material><ambient>0.15 0.12 0.0 1</ambient><diffuse>0.10 0.08 0.0 1</diffuse></material>
+      </visual>
+      <visual name="green_off">
+        <pose>0 0 -1.10 0 0 0</pose>
+        <geometry><sphere><radius>0.22</radius></sphere></geometry>
+        <material><ambient>0.0 0.15 0.0 1</ambient><diffuse>0.0 0.10 0.0 1</diffuse></material>
+      </visual>
+
+    </link>
+  </model>
+</sdf>

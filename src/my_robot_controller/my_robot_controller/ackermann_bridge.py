@@ -175,8 +175,18 @@ class AckermannBridge(Node):
 
         # 3. YANAL KONTROL (Ackermann Kinematiği - Direksiyon)
         steering_angle = 0.0
-        if abs(self.current_speed) > 0.3: 
-            steering_angle = math.atan((self.wheelbase * self.target_angular) / self.current_speed)
+        # Düşük hızlarda veya dururken de yönlenebilmek için referans hız hesabı
+        if abs(self.current_speed) > 0.05:
+            ref_speed = self.current_speed
+        elif abs(self.target_speed) > 0.05:
+            ref_speed = self.target_speed
+        else:
+            # Sıfıra yakın durumlarda sıfıra bölmeyi önlemek için varsayılan minimum yönlenme referansı
+            ref_speed = 0.15 if self.target_speed >= 0 else -0.15
+        
+        steering_angle = math.atan((self.wheelbase * self.target_angular) / ref_speed)
+        # Direksiyon açısını fiziksel sınırlarla sınırla (-0.6 ile 0.6 radyan)
+        steering_angle = max(min(steering_angle, 0.6), -0.6)
         
         # VERİLERİ YAYINLA
         t_msg = Float32()

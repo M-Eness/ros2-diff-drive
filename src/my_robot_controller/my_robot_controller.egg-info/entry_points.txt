@@ -1,0 +1,23 @@
+[console_scripts]
+ackermann_bridge = my_robot_controller.ackermann_bridge:main
+blinker_node = my_robot_controller.blinker_node:main
+bt_decision_node = my_robot_controller.bt_decision_node:main
+dashboard_node = my_robot_controller.dashboard_node:main
+durak_nav = my_robot_controller.durak_nav:main
+geojson_reader = my_robot_controller.geojson_reader:main
+gps_follower = my_robot_controller.gps_follower:main
+gps_simulator = my_robot_controller.gps_simulator:main
+lane_controller_node = my_robot_controller.lane_controller_node:main
+lane_detection_node = my_robot_controller.lane_detection_node:main
+lane_detector_cv = my_robot_controller.lane_detector_cv:main
+mission_manager = my_robot_controller.mission_manager:main
+robot_driver = my_robot_controller.robot_driver:main
+simple_subscriber = my_robot_controller.simple_subscriber:main
+slalom_controller = my_robot_controller.slalom_controller:main
+static_obstacle_node = my_robot_controller.static_obstacle_node:main
+test_node = my_robot_controller.test_node:main
+traffic_light_detector = my_robot_controller.traffic_light_detector:main
+traffic_sign_detector = my_robot_controller.traffic_sign_detector:main
+ums_bridge = my_robot_controller.ums_bridge:main
+vehicle_emulator = my_robot_controller.vehicle_emulator:main
+

@@ -1,145 +1,168 @@
+#!/usr/bin/env python3
+"""
+Mission Manager v2.0 - Robotaksi TEKNOFEST 2026
+================================================
+Nav2 bağımlılığı olmadan çalışır.
+BT Decision Node'a /mission/command topic üzerinden komut gönderir.
+
+Görev sırası mission.json'dan okunur:
+  MOVE    → şerit takibi devam (lane_controller yönetir), bekle
+  DURAK   → BT durak levhasını görünce durduruyor; fallback timer
+  ISIK    → trafik ışığını BT node yönetir (no-op)
+  PARK    → PARK_ZONE → 15s bekle → PARK komutu (levha görülmezse)
+"""
+
+import json
+import os
 import rclpy
 from rclpy.node import Node
-from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
-from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import String  # Trafik ışığı verisi için
-import json
-import time
-import os
+from std_msgs.msg import String
 from ament_index_python.packages import get_package_share_directory
 
+
 class MissionManager(Node):
+
     def __init__(self):
         super().__init__('mission_manager')
-        
-        # 1. Nav2 ile konuşacak "Komutan" nesnesini oluşturuyoruz.
-        # Bu, arka planda Action Client kullanarak Nav2'ye emir verir.
-        self.navigator = BasicNavigator()
-        
-        # 2. Kulaklarımızı açıyoruz: Trafik Işığı Dinleyicisi
-        # Algılama ekibi hazır olana kadar buraya terminalden veri basacağız.
-        self.current_light_status = "GREEN" # Varsayılan olarak yol açık
-        self.create_subscription(
-            String,
-            '/traffic_light_state',
-            self.light_callback,
-            10
+
+        self.declare_parameter('mission_file',    '')
+        self.declare_parameter('step_interval_s', 30.0)
+        self.declare_parameter('auto_start',      True)
+
+        self.cmd_pub = self.create_publisher(String, '/mission/command', 10)
+        self.create_subscription(String, '/bt/status', self._cb_status, 10)
+        self.create_subscription(String, '/mission/command', self._cb_ext_cmd, 10)
+
+        self.mission           = self._load_mission()
+        self.step              = 0
+        self.started           = False
+        self.waiting_park_done = False
+        self.state_hint        = ''
+
+        if self.get_parameter('auto_start').value:
+            self._start_timer = self.create_timer(3.0, self._auto_start_cb)
+
+        self.get_logger().info(
+            f'MissionManager v2.0 başlatıldı — {len(self.mission)} görev yüklendi'
         )
-        self.mission_cmd_pub = self.create_publisher(String, '/mission/command', 10)
-        self.get_logger().info("Mission Manager Başlatıldı. Işık Durumu: GREEN")
 
-    def light_callback(self, msg):
-        """Trafik ışığı verisi geldiğinde bu fonksiyon çalışır."""
-        previous_status = self.current_light_status
-        self.current_light_status = msg.data
-        
-        if previous_status != self.current_light_status:
-            self.get_logger().info(f"🚦 IŞIK DURUMU DEĞİŞTİ: {self.current_light_status}")
+    # ─── Yükleme ──────────────────────────────────────────────────────────────
 
-    def load_mission(self):
-        """mission.json dosyasını okur ve hedefleri listeler."""
+    def _load_mission(self):
+        param = self.get_parameter('mission_file').value
+        if param:
+            path = param
+        else:
+            pkg  = get_package_share_directory('my_robot_controller')
+            path = os.path.join(pkg, 'config', 'mission.json')
         try:
-            pkg_share = get_package_share_directory('my_robot_controller')
-            file_path = os.path.join(pkg_share, 'config', 'mission.json')
-            with open(file_path, 'r') as f:
+            with open(path) as f:
                 data = json.load(f)
-                return data['features']
+            self.get_logger().info(f'mission.json yüklendi: {path}')
+            return data.get('features', [])
         except Exception as e:
-            self.get_logger().error(f"Dosya okuma hatası: {e}")
+            self.get_logger().error(f'mission.json okunamadı: {e}')
             return []
 
-    def run_mission(self):
-        # Nav2 sisteminin tamamen açılmasını bekle (Önemli!)
-        self.navigator.waitUntilNav2Active()
-        self.get_logger().info("Nav2 Aktif! Görev Başlıyor...")
-        
-        gorevler = self.load_mission()
+    # ─── UMS Go / Dış START komutu ───────────────────────────────────────────
 
-        for item in gorevler:
-            coords = item['geometry']['coordinates']
-            props = item['properties']
-            gorev_tipi = props.get('gorev_tipi', 'MOVE')
-            description = props.get('description', 'Bilinmeyen Hedef')
-            
-            self.get_logger().info(f"--- YENİ HEDEF: {description} ({gorev_tipi}) ---")
-            
-            # Hedef Pozisyonunu Oluştur
-            goal_pose = PoseStamped()
-            goal_pose.header.frame_id = 'map'
-            goal_pose.header.stamp = self.navigator.get_clock().now().to_msg()
-            goal_pose.pose.position.x = float(coords[0])
-            goal_pose.pose.position.y = float(coords[1])
-            goal_pose.pose.orientation.w = 1.0 # Şimdilik sabit yön
-            
-            # Park bölgesine yaklaşılıyorsa bt_decision_node'u uyar
-            if gorev_tipi == "PARK":
-                zone_msg = String()
-                zone_msg.data = "PARK_ZONE"
-                self.mission_cmd_pub.publish(zone_msg)
-                self.get_logger().info("Park bölgesine yöneliniyor — PARK_ZONE yayınlandı.")
+    def _cb_ext_cmd(self, msg: String):
+        if msg.data == "START" and not self.started:
+            self.started = True
+            self.get_logger().info("START sinyali alındı → görev başlıyor.")
+            self._execute_next()
 
-            # Hareketi Başlat
-            self.navigator.goToPose(goal_pose)
+    # ─── Başlatma ─────────────────────────────────────────────────────────────
 
-            # --- SÜREKLİ KONTROL DÖNGÜSÜ (BEYİN) ---
-            # Robot hedefe gidene kadar bu döngü sürekli döner
-            while not self.navigator.isTaskComplete():
-                
-                # KURAL 1: Kırmızı Işık Kontrolü [cite: 133]
-                # Eğer görev tipi "ISIK" ise ve ışık "RED" ise durmalıyız.
-                if gorev_tipi == "ISIK" and self.current_light_status == "RED":
-                    self.get_logger().warn("🛑 KIRMIZI IŞIK ALGILANDI! Robot Durduruluyor...")
-                    
-                    # 1. Mevcut görevi iptal et (Fren yap)
-                    self.navigator.cancelTask()
-                    
-                    # 2. Yeşil olana kadar bekle (Blocking loop)
-                    while self.current_light_status == "RED":
-                        self.get_logger().info("⏳ Işık Kırmızı... Bekleniyor...", throttle_duration_sec=2)
-                        time.sleep(0.5)
-                        # ROS callback'lerinin çalışması için kısa bir uyuma
-                        
-                    self.get_logger().info("🟢 YEŞİL IŞIK! Yola Devam Ediliyor...")
-                    # 3. Görevi tekrar gönder (Kaldığı yerden değil, baştan planlar)
-                    goal_pose.header.stamp = self.navigator.get_clock().now().to_msg()
-                    self.navigator.goToPose(goal_pose)
+    def _auto_start_cb(self):
+        self._start_timer.cancel()
+        if not self.started:
+            self.started = True
+            self.get_logger().info('Görev sekansı başlıyor.')
+            self._execute_next()
 
-                # Feedback (Geri bildirim) alabiliriz (Kalan mesafe vs.)
-                # feedback = self.navigator.getFeedback()
+    # ─── BT status dinleyicisi ────────────────────────────────────────────────
 
-            # Döngüden çıktık, yani ya vardık ya hata aldık.
-            result = self.navigator.getResult()
-            
-            if result == TaskResult.SUCCEEDED:
-                self.get_logger().info("✅ Hedefe Varıldı.")
+    def _cb_status(self, msg: String):
+        s = msg.data
+        if s == 'PARK_TAMAM' and self.waiting_park_done:
+            self.waiting_park_done = False
+            self.get_logger().info('Park tamamlandı — sonraki göreve geç.')
+            if hasattr(self, '_park_fallback_timer'):
+                self._park_fallback_timer.cancel()
+            self._schedule_next(5.0)
 
-                # Senaryo Gereği Bekleme (Yolcu Alma vb.) [cite: 630]
-                if gorev_tipi == "DURAK":
-                    wait_time = props.get('bekleme_suresi', 5)
-                    self.get_logger().info(f"⏳ Yolcu Alınıyor... ({wait_time} sn)")
-                    time.sleep(wait_time)
+    # ─── Görev yürütücü ───────────────────────────────────────────────────────
 
-                elif gorev_tipi == "PARK":
-                    self.get_logger().info("🅿️ Park girişine varıldı — bt_decision_node'a PARK komutu gönderiliyor.")
-                    cmd_msg = String()
-                    cmd_msg.data = "PARK"
-                    self.mission_cmd_pub.publish(cmd_msg)
-                    
-            elif result == TaskResult.CANCELED:
-                self.get_logger().warn("⚠️ Görev İptal Edildi!")
-            elif result == TaskResult.FAILED:
-                self.get_logger().error("❌ Navigasyon Başarısız Oldu!")
+    def _execute_next(self):
+        if self.step >= len(self.mission):
+            self.get_logger().info('Tüm görevler tamamlandı.')
+            return
 
-def main():
-    rclpy.init()
+        feat  = self.mission[self.step]
+        props = feat.get('properties', {})
+        tip   = props.get('gorev_tipi', 'MOVE')
+        desc  = props.get('description', f'Görev {self.step + 1}')
+        self.state_hint = tip
+        self.step      += 1
+
+        self.get_logger().info(
+            f'[{self.step}/{len(self.mission)}] {desc} ({tip})'
+        )
+
+        interval = self.get_parameter('step_interval_s').value
+
+        if tip == 'MOVE':
+            self._schedule_next(interval)
+
+        elif tip == 'DURAK':
+            wait = float(props.get('bekleme_suresi', 15))
+            # BT levha görünce kendi durduruyor; biz sadece zaman aşımı ekleriz
+            self._schedule_next(wait + 10.0)
+
+        elif tip == 'ISIK':
+            # BT node ışık durumunu kendi yönetiyor
+            self._schedule_next(interval)
+
+        elif tip == 'PARK':
+            self._publish('PARK_ZONE')
+            # 15s içinde levha görülmezse doğrudan PARK gönder
+            self._park_fallback_timer = self.create_timer(
+                15.0, self._park_fallback_cb
+            )
+            self.waiting_park_done = True
+
+    def _park_fallback_cb(self):
+        self._park_fallback_timer.cancel()
+        self.get_logger().info('Park levhası bekleme süresi doldu → PARK komutu')
+        self._publish('PARK')
+
+    def _schedule_next(self, delay: float):
+        self._next_timer = self.create_timer(delay, self._next_timer_cb)
+
+    def _next_timer_cb(self):
+        self._next_timer.cancel()
+        self._execute_next()
+
+    def _publish(self, cmd: str):
+        msg      = String()
+        msg.data = cmd
+        self.cmd_pub.publish(msg)
+        self.get_logger().info(f'/mission/command → {cmd}')
+
+
+def main(args=None):
+    rclpy.init(args=args)
     node = MissionManager()
     try:
-        node.run_mission()
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
